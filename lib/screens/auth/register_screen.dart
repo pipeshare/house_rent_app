@@ -132,7 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   // Header
-                  SizedBox(height: 110),
+                  const SizedBox(height: 110),
                   Column(
                     children: [
                       Icon(

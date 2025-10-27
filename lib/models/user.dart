@@ -82,7 +82,7 @@ class User extends Equatable {
   /// Parses timestamp with null safety
   static DateTime _parseTimestamp(dynamic timestamp) {
     if (timestamp == null) {
-      throw FormatException('Timestamp cannot be null');
+      throw const FormatException('Timestamp cannot be null');
     }
 
     if (timestamp is Timestamp) {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:house_rent_app/core/helpers.dart';
 import 'package:house_rent_app/models/DataModels.dart';
 import 'package:house_rent_app/screens/home/property_card.dart';

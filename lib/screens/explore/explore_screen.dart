@@ -6,7 +6,6 @@ import 'package:house_rent_app/core/constants.dart';
 import 'package:house_rent_app/models/Property.dart';
 import 'package:house_rent_app/screens/explore/components/filer_pill.dart';
 import 'package:house_rent_app/screens/explore/search_field.dart';
-import 'package:house_rent_app/screens/home/property_card.dart';
 import 'package:house_rent_app/screens/profile/section_tiltle.dart';
 
 class ExploreScreen extends StatefulWidget {

@@ -94,7 +94,7 @@ class _PostScreenState extends State<PostScreen> {
 
       // Show success and wait a bit before navigating
       _toast(context, 'Property posted successfully!');
-      await Future.delayed(Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 1500));
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -176,7 +176,7 @@ class _PostScreenState extends State<PostScreen> {
                     photos: mockPhotos,
                     onAdd: _addMockPhoto,
                     onRemove: _removeMockPhoto,
-                    imagePaths: [],
+                    imagePaths: const [],
                   ),
                   _ReviewStep(
                     titleSize: 37,
@@ -489,7 +489,7 @@ class _PhotosStep extends StatelessWidget {
                       child: IconButton(
                         onPressed: () => onRemove(i),
                         icon: Container(
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: Colors.black54,
                             shape: BoxShape.circle,
                           ),

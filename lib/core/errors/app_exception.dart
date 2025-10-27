@@ -10,23 +10,19 @@ class AppException implements Exception {
 }
 
 class NetworkException extends AppException {
-  const NetworkException(String message)
-      : super(message, code: 'NETWORK_ERROR');
+  const NetworkException(super.message) : super(code: 'NETWORK_ERROR');
 }
 
 class FirebaseAuthException extends AppException {
-  const FirebaseAuthException(String message, String code)
-      : super(message, code: code);
+  const FirebaseAuthException(super.message, String code) : super(code: code);
 }
 
 class StorageException extends AppException {
-  const StorageException(String message, String code)
-      : super(message, code: code);
+  const StorageException(super.message, String code) : super(code: code);
 }
 
 class ValidationException extends AppException {
-  const ValidationException(String message)
-      : super(message, code: 'VALIDATION_ERROR');
+  const ValidationException(super.message) : super(code: 'VALIDATION_ERROR');
 }
 
 // lib/core/errors/failures.dart
@@ -41,13 +37,13 @@ class Failure {
 }
 
 class NetworkFailure extends Failure {
-  NetworkFailure(String message) : super(message, code: 'NETWORK_ERROR');
+  NetworkFailure(super.message) : super(code: 'NETWORK_ERROR');
 }
 
 class AuthFailure extends Failure {
-  AuthFailure(String message, String code) : super(message, code: code);
+  AuthFailure(super.message, String code) : super(code: code);
 }
 
 class StorageFailure extends Failure {
-  StorageFailure(String message, String code) : super(message, code: code);
+  StorageFailure(super.message, String code) : super(code: code);
 }

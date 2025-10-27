@@ -42,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    return _buildProfileScreen(_currentUser!);
+    return _buildProfileScreen(_currentUser);
   }
 
   Future<void> _loadCurrentUser() async {

@@ -7,6 +7,7 @@ class PropertyCard extends StatefulWidget {
   final VoidCallback onTap;
 
   const PropertyCard({
+    super.key,
     required this.property,
     required this.onTap,
   });

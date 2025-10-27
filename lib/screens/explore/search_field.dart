@@ -6,7 +6,10 @@ import 'package:house_rent_app/core/constants.dart';
 
 class SearchField extends StatelessWidget {
   const SearchField(
-      {required this.controller, required this.hint, this.onSubmitted});
+      {super.key,
+      required this.controller,
+      required this.hint,
+      this.onSubmitted});
   final TextEditingController controller;
   final String hint;
   final ValueChanged<String>? onSubmitted;
