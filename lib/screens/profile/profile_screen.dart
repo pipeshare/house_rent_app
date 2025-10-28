@@ -41,7 +41,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
     }
-
     return _buildProfileScreen(_currentUser);
   }
 
@@ -65,7 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               email: firebaseUser.email ?? 'No email',
               fullName:
                   userData['fullName'] ?? firebaseUser.displayName ?? 'User',
-              profileImageUrl: userData['avatarUrl'] ??
+              profileImageUrl: userData['photoURL'] ??
                   userData['photoURL'] ??
                   firebaseUser.photoURL ??
                   'https://i.pravatar.cc/150?img=12',
@@ -168,61 +167,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const PostScreen()),
-    );
-  }
-
-  Widget _buildNotLoggedInScreen() {
-    return Scaffold(
-      backgroundColor: kBackgroundColor,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.person_outline_rounded,
-                size: 80,
-                color: Colors.grey.shade400,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Please Sign In',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: kTitleColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sign in to access your profile, create listings, and manage your rentals',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: kBodyTextColor,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  // This will be handled by AuthWrapper
-                  Navigator.pushReplacementNamed(context, '/login');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimaryColor,
-                  foregroundColor: kWhite,
-                  minimumSize: const Size(200, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Sign In'),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -347,8 +291,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: _changeProfileImage,
                         child: CircleAvatar(
                           radius: isSmallScreen ? 60 : 70,
-                          backgroundImage:
-                              NetworkImage(user.profileImageUrl.toString()),
+                          backgroundImage: NetworkImage(
+                            user.profileImageUrl.toString(),
+                          ),
                         ),
                       ),
                       if (user.isEmailVerified)
@@ -368,7 +313,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                         ),
-                      // Edit icon overlay
                       Positioned(
                         bottom: 0,
                         right: 0,
@@ -499,8 +443,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         // Your listings
         GestureDetector(
-          behavior: HitTestBehavior.opaque,
+          // behavior: HitTestBehavior.opaque,
           onTap: () {
+            print(user);
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ListingsScreen()),
             );
@@ -509,7 +454,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.apartment_rounded,
             title: 'My Listings',
             subtitle: 'Manage your rental properties',
-            // trailing: isSmallScreen,
           ),
         ),
         const SizedBox(height: 8),

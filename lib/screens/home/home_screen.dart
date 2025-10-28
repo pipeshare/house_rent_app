@@ -1,7 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:house_rent_app/core/helpers.dart';
 import 'package:house_rent_app/models/DataModels.dart';
+import 'package:house_rent_app/models/Professional.dart';
 import 'package:house_rent_app/screens/home/property_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -13,11 +15,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  int _selectedCategory = 0; // Changed from final to int
-// Moved to class level
-  bool _isMapMode = false; // Moved to class level
+  int _selectedCategory = 0;
 
-  // Data from Firestore
+  bool _isMapMode = false;
+
+  final Map<int, Widget> _categoryCache = {};
+
   List<Category> categories = [Category('All', Icons.all_inclusive_rounded)];
   List<Professional> professionals = [];
 
@@ -38,12 +41,27 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadProfessionals() async {
     try {
       final snapshot = await _firestore.collection('professionals').get();
+
       final loadedProfessionals = snapshot.docs.map((doc) {
         final data = doc.data();
+
+        // Convert the specialty string to enum safely
+        final specialtyStr = (data['specialty'] ?? '').toString().toLowerCase();
+        final specialty = ProfessionalSpecialty.values.firstWhere(
+          (e) => e.name.toLowerCase() == specialtyStr,
+          orElse: () => ProfessionalSpecialty.agent, // fallback if unknown
+        );
+
         return Professional(
-          data['name'] ?? 'Unknown',
-          data['specialty'] ?? 'Professional',
-          data['imageUrl'] ?? '',
+          id: doc.id,
+          name: data['name'] ?? 'Unknown',
+          company: data['company'] ?? 'Unknown Company',
+          specialty: specialty,
+          rating: (data['rating'] ?? 0).toDouble(),
+          verified: data['verified'] ?? false,
+          imageUrl: data['imageUrl'] ?? '',
+          yearsExperience: data['yearsExperience'] ?? 0,
+          phone: data['phone'] ?? '',
         );
       }).toList();
 
@@ -132,7 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: Stack(
               children: [
-                // Map Background (minimal - just for context)
                 Positioned.fill(
                   child: Container(
                     color: Colors.grey[50],
@@ -144,9 +161,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 DraggableScrollableSheet(
-                  initialChildSize: 0.99,
-                  minChildSize: 0.15,
-                  maxChildSize: 0.99,
+                  initialChildSize: 1,
+                  minChildSize: 0.12,
+                  maxChildSize: 1,
                   snap: true,
                   builder: (context, scrollController) {
                     return NotificationListener<
@@ -160,15 +177,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Container(
                         decoration: const BoxDecoration(
                           color: Colors.white,
-                          borderRadius:
-                              BorderRadius.vertical(top: Radius.circular(0)),
-                          boxShadow: [
-                            BoxShadow(
-                              blurRadius: 20,
-                              color: Colors.black12,
-                              offset: Offset(0, -2),
-                            ),
-                          ],
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(0),
+                          ),
                         ),
                         child: Column(
                           children: [
@@ -281,10 +292,16 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ------------------------------
         // Search Bar
+        // ------------------------------
         Padding(
-          padding:
-              const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 0),
+          padding: const EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: 0,
+          ),
           child: Container(
             height: 40,
             decoration: BoxDecoration(
@@ -299,23 +316,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icon(Icons.search, color: Colors.grey[500], size: 20),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Container(
-                    alignment: Alignment.centerLeft,
-                    height: 40,
-                    child: TextField(
-                      style: const TextStyle(fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText:
-                            'Search properties, locations, professionals...',
-                        hintStyle: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 12,
-                          height: 1.2,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                        isDense: true,
+                  child: TextField(
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText:
+                          'Search properties, locations, professionals...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                        height: 1.2,
                       ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      isDense: true,
                     ),
                   ),
                 ),
@@ -324,10 +337,15 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+
         const SizedBox(height: 16),
+
+        // ------------------------------
+        // Category Tabs (with stable caching)
+        // ------------------------------
         Container(
           color: Colors.white,
-          height: 70,
+          height: 80,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -336,13 +354,39 @@ class _HomeScreenState extends State<HomeScreen> {
               final category = categories[index];
               final isSelected = _selectedCategory == index;
 
-              return Padding(
+              // Each category has two cache states: selected & unselected
+              final cacheKey = index * 10 + (isSelected ? 1 : 0);
+
+              // Return cached widget if exists
+              if (_categoryCache.containsKey(cacheKey)) {
+                return _categoryCache[cacheKey]!;
+              }
+
+              // Build the widget if not cached
+              final widget = Padding(
                 padding: EdgeInsets.only(
                   left: index == 0 ? 20 : 12,
-                  right: index == categories.length - 1 ? 0 : 12,
+                  right: index == categories.length - 1 ? 20 : 12,
                 ),
-                child: _buildCategoryTab(category, isSelected, index),
+                child: GestureDetector(
+                  onTap: () {
+                    // Only rebuild when actual change happens
+                    if (_selectedCategory != index) {
+                      setState(() {
+                        _selectedCategory = index;
+                        // Clear only selected/unselected versions
+                        _categoryCache.remove(index * 10);
+                        _categoryCache.remove(index * 10 + 1);
+                      });
+                    }
+                  },
+                  child: _buildCategoryTab(category, isSelected, index),
+                ),
               );
+
+              // Store it in cache
+              _categoryCache[cacheKey] = widget;
+              return widget;
             },
           ),
         ),
@@ -356,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 65,
+          width: 55,
           height: 48,
           child: Icon(
             category.icon,
@@ -365,17 +409,30 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          category.name,
-          style: TextStyle(
-            color: isSelected ? Colors.black : Colors.grey[600],
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            height: 1.1,
+        Container(
+          padding: const EdgeInsets.only(bottom: 4),
+          decoration: BoxDecoration(
+            border: isSelected
+                ? const Border(
+                    bottom: BorderSide(
+                      color: Colors.black,
+                      width: 3.0,
+                    ),
+                  )
+                : null,
           ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          child: Text(
+            category.name,
+            style: TextStyle(
+              color: isSelected ? Colors.black : Colors.grey[600],
+              fontSize: 11,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              height: 1.1,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
@@ -385,9 +442,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // const Divider(height: 10),
+        const SizedBox(height: 12),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
           child: Row(
             children: [
               Text(
@@ -410,7 +467,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const Divider(height: 10),
         SizedBox(
           height: 150,
           child: ListView.builder(
@@ -423,15 +480,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 margin: const EdgeInsets.only(right: 12),
                 child: Column(
                   children: [
+                    const SizedBox(height: 15),
                     Container(
                       width: 70,
                       height: 70,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(35),
-                        color: Colors.grey[200],
+                        color: Colors.grey[700],
                         image: pro.imageUrl.startsWith('http')
                             ? DecorationImage(
-                                image: NetworkImage(pro.imageUrl),
+                                image: CachedNetworkImageProvider(pro.imageUrl),
                                 fit: BoxFit.cover,
                               )
                             : null,
@@ -452,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       maxLines: 2,
                     ),
                     Text(
-                      pro.specialty,
+                      pro.specialty.toString(),
                       style: TextStyle(
                         fontSize: 10,
                         color: Colors.grey[500],
@@ -509,10 +567,31 @@ class _HomeScreenState extends State<HomeScreen> {
           : _firestore
               .collection('posts')
               .where('category', isEqualTo: selectedCategory)
-              .orderBy('createdAt', descending: true)
+              // Remove orderBy temporarily while index is building
+              // .orderBy('createdAt', descending: true)
               .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          // Check if it's an index error
+          if (snapshot.error.toString().contains('index')) {
+            return const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Text('Setting up database...'),
+                    SizedBox(height: 10),
+                    CircularProgressIndicator(),
+                    SizedBox(height: 10),
+                    Text(
+                      'This may take a few minutes',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
           return SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -521,6 +600,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
 
+        // Rest of your existing code remains the same...
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SliverToBoxAdapter(
             child: Padding(
@@ -537,6 +617,17 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         final properties = snapshot.data!.docs;
+
+        // Manual sorting if not using orderBy
+        if (selectedCategory != 'All') {
+          properties.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aDate = aData['createdAt'] as Timestamp;
+            final bDate = bData['createdAt'] as Timestamp;
+            return bDate.compareTo(aDate); // Descending order
+          });
+        }
 
         return SliverList(
           delegate: SliverChildBuilderDelegate(

@@ -3,7 +3,7 @@
 // =====================
 import 'package:flutter/material.dart';
 import 'package:house_rent_app/core/constants.dart';
-import 'package:house_rent_app/models/Property.dart';
+import 'package:house_rent_app/models/property.dart';
 
 class SavedScreen extends StatefulWidget {
   const SavedScreen({super.key});
