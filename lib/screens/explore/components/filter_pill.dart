@@ -6,22 +6,22 @@ class FilterPill extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   const FilterPill({
-    Key? key,
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        margin: EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
           color: selected ? kPrimaryColor.withOpacity(.12) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(5),
           border: Border.all(
             color: selected ? kPrimaryColor : Colors.grey.shade300,
             width: selected ? 1.25 : 1,
@@ -37,8 +37,8 @@ class FilterPill extends StatelessWidget {
                   color: selected ? kPrimaryColor : kBodyTextColor,
                 )),
             if (selected) ...[
-              SizedBox(width: 6),
-              Icon(Icons.check_circle, size: 16, color: kPrimaryColor),
+              const SizedBox(width: 6),
+              const Icon(Icons.check_circle, size: 16, color: kPrimaryColor),
             ],
           ],
         ),

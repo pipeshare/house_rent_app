@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:house_rent_app/core/routes/route_generator.dart';
 import 'package:house_rent_app/core/services/navigation_service.dart';
 import 'package:house_rent_app/screens/auth/auth_wrapper.dart';
+import 'package:house_rent_app/services/database_seeder.dart';
 import 'package:house_rent_app/services/firebase_manual.dart';
 
 void main() async {
@@ -15,7 +16,7 @@ void main() async {
     await Firebase.initializeApp(
       options: FirebaseManualConfig.androidOptions,
     );
-    log('✅ Firebase initialized successfully!');
+    log('✅ Firebase initialized success!');
 
     // await DatabaseSeeder.seedInitialData();
 
@@ -24,7 +25,6 @@ void main() async {
     log('❌ Firebase initialization failed: $e');
     log('📋 Stack trace: $stack');
 
-    // Run app anyway
     runApp(MyApp());
   }
 }

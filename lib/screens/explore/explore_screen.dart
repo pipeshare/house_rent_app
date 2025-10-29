@@ -7,6 +7,7 @@ import 'package:house_rent_app/models/Professional.dart';
 import 'package:house_rent_app/models/Property.dart';
 import 'package:house_rent_app/screens/explore/components/filter_pill.dart';
 import 'package:house_rent_app/screens/explore/components/professional_grid_card.dart';
+import 'package:house_rent_app/screens/explore/components/property_grid_card.dart';
 
 enum ExploreTab { properties, professionals }
 
@@ -17,7 +18,8 @@ class ExploreScreen extends StatefulWidget {
   State<ExploreScreen> createState() => _ExploreScreenState();
 }
 
-class _ExploreScreenState extends State<ExploreScreen> {
+class _ExploreScreenState extends State<ExploreScreen>
+    with AutomaticKeepAliveClientMixin<ExploreScreen> {
   ExploreTab activeTab = ExploreTab.properties;
   List<Property> properties = [];
   List<Professional> professionals = [];
@@ -109,61 +111,101 @@ class _ExploreScreenState extends State<ExploreScreen> {
       builder: (context) {
         final tempSelection =
             Map<ProfessionalSpecialty, bool>.from(professionalFilterSelection);
-        return Padding(
-          padding:
-              MediaQuery.of(context).viewInsets.add(const EdgeInsets.all(16)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(height: 6, width: 40, color: Colors.grey.shade200),
-              const SizedBox(height: 12),
-              const Text('Filter Professionals', style: kTitleStyle),
-              const SizedBox(height: 8),
-              const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Specialties', style: kCaptionStyle)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: ProfessionalSpecialty.values.map((s) {
-                  final label = s.name[0].toUpperCase() + s.name.substring(1);
-                  return FilterChip(
-                    label: Text(label),
-                    selected: tempSelection[s] ?? false,
-                    onSelected: (v) {
-                      setState(() {
-                        tempSelection[s] = v;
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-              Row(
+        return Column(
+          children: [
+            Padding(
+              padding: MediaQuery.of(context)
+                  .viewInsets
+                  .add(const EdgeInsets.all(16)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(null); // cancel -> no change
-                      },
-                      child: const Text('Cancel'),
-                    ),
+                  Container(height: 6, width: 40, color: Colors.grey.shade200),
+                  const SizedBox(height: 12),
+                  const Text('Filter Professionals', style: kTitleStyle),
+                  const SizedBox(height: 8),
+                  const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Specialties', style: kCaptionStyle)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: ProfessionalSpecialty.values.map((s) {
+                      final label =
+                          s.name[0].toUpperCase() + s.name.substring(1);
+                      return FilterChip(
+                        label: Text(label),
+                        selected: tempSelection[s] ?? false,
+                        onSelected: (v) {
+                          setState(() {
+                            tempSelection[s] = v;
+                          });
+                        },
+                      );
+                    }).toList(),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(tempSelection);
-                      },
-                      child: const Text('Apply'),
-                    ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(context)
+                                .pop(null); // cancel -> no change
+                          },
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(tempSelection);
+                          },
+                          child: const Text('Apply'),
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 12),
                 ],
               ),
-              const SizedBox(height: 12),
-            ],
-          ),
+            ),
+            // Filter pills
+            SliverToBoxAdapter(
+              child: Container(
+                height: 35,
+                padding: const EdgeInsets.only(left: kHorizontalPadding),
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    FilterPill(
+                      label: 'Featured',
+                      selected: activeFilterPills.contains('Featured'),
+                      onTap: () => _toggleFilterPill('Featured'),
+                    ),
+                    FilterPill(
+                      label: 'Available',
+                      selected: activeFilterPills.contains('Available'),
+                      onTap: () => _toggleFilterPill('Available'),
+                    ),
+                    FilterPill(
+                      label: '3+ beds',
+                      selected: activeFilterPills.contains('3+ beds'),
+                      onTap: () => _toggleFilterPill('3+ beds'),
+                    ),
+                    FilterPill(
+                      label: 'Verified',
+                      selected: activeFilterPills.contains('Verified'),
+                      onTap: () => _toggleFilterPill('Verified'),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -231,18 +273,21 @@ class _ExploreScreenState extends State<ExploreScreen> {
         backgroundColor: Colors.white,
         elevation: 1,
         titleSpacing: 0,
-        title: Row(
-          children: [
-            const SizedBox(width: 4),
-            Expanded(
-              child: _buildSearchBar(),
-            ),
-            IconButton(
-              icon: const Icon(Icons.filter_list),
-              onPressed: _openProfessionalFilterModal,
-              tooltip: 'Open filter modal',
-            ),
-          ],
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+          child: Row(
+            children: [
+              const SizedBox(width: 4),
+              Expanded(
+                child: _buildSearchBar(),
+              ),
+              IconButton(
+                icon: const Icon(Icons.tune),
+                onPressed: _openProfessionalFilterModal,
+                tooltip: 'Open filter modal',
+              ),
+            ],
+          ),
         ),
       ),
       body: NotificationListener<ScrollNotification>(
@@ -266,40 +311,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       const SizedBox(width: 8),
                       _buildTabButton(
                           'Professionals', ExploreTab.professionals),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Filter pills
-              SliverToBoxAdapter(
-                child: Container(
-                  height: 46,
-                  padding: const EdgeInsets.only(left: kHorizontalPadding),
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      FilterPill(
-                        label: 'Featured',
-                        selected: activeFilterPills.contains('Featured'),
-                        onTap: () => _toggleFilterPill('Featured'),
-                      ),
-                      FilterPill(
-                        label: 'Available',
-                        selected: activeFilterPills.contains('Available'),
-                        onTap: () => _toggleFilterPill('Available'),
-                      ),
-                      FilterPill(
-                        label: '3+ beds',
-                        selected: activeFilterPills.contains('3+ beds'),
-                        onTap: () => _toggleFilterPill('3+ beds'),
-                      ),
-                      FilterPill(
-                        label: 'Verified',
-                        selected: activeFilterPills.contains('Verified'),
-                        onTap: () => _toggleFilterPill('Verified'),
-                      ),
-                      const SizedBox(width: 12),
                     ],
                   ),
                 ),
@@ -396,7 +407,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       child: GestureDetector(
         onTap: () => setState(() => activeTab = tab),
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: selected ? kPrimaryColor.withOpacity(.12) : Colors.white,
             border: Border.all(
@@ -420,22 +431,30 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   Widget _buildSearchBar() {
     return Container(
-      height: 44,
+      height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
         children: [
-          Icon(Icons.search, size: 20, color: Colors.grey.shade600),
+          Icon(
+            Icons.search,
+            size: 20,
+            color: Colors.grey.shade600,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
               onChanged: _onSearchChanged,
               decoration: const InputDecoration(
                 hintText: 'Search properties or professionals',
+                hintStyle: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 8),
@@ -453,120 +472,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
       ),
     );
   }
-}
-
-class ProfessionalGridCard extends StatelessWidget {
-  final Professional pro;
-  final VoidCallback onTap;
-  const ProfessionalGridCard({
-    super.key,
-    required this.pro,
-    required this.onTap,
-  });
-
-  Widget _badge(String label, {Color? bg}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg ?? Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.withOpacity(.12)),
-      ),
-      child: Text(label,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-    );
-  }
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      pro.imageUrl,
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, o, s) {
-                        return Container(
-                          width: 56,
-                          height: 56,
-                          color: Colors.grey.shade200,
-                          child:
-                              Icon(Icons.person, size: 30, color: Colors.grey),
-                        );
-                      },
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(pro.name,
-                            style: kBodyStyle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        SizedBox(height: 4),
-                        Text(
-                            '${pro.specialty.name[0].toUpperCase()}${pro.specialty.name.substring(1)} • ${pro.company}',
-                            style: kCaptionStyle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(Icons.star, size: 14),
-                            SizedBox(width: 6),
-                            Text(pro.rating.toStringAsFixed(1),
-                                style: TextStyle(fontSize: 12)),
-                            SizedBox(width: 12),
-                            Icon(Icons.work_outline, size: 14),
-                            SizedBox(width: 6),
-                            Text('${pro.yearsExperience}y',
-                                style: TextStyle(fontSize: 12)),
-                          ],
-                        )
-                      ],
-                    ),
-                  )
-                ],
-              ),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  _badge(pro.verified ? 'VERIFIED' : 'UNVERIFIED',
-                      bg: pro.verified
-                          ? kPrimaryColor.withOpacity(.10)
-                          : Colors.white),
-                  Spacer(),
-                  IconButton(
-                    onPressed: () {
-                      // quick call handler placeholder
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Call ${pro.phone}')));
-                    },
-                    icon: Icon(Icons.call, size: 20),
-                    tooltip: 'Call',
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // TODO: implement wantKeepAlive
+  bool get wantKeepAlive => true;
 }

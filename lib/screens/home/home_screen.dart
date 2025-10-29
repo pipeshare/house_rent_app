@@ -13,7 +13,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin<HomeScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   int _selectedCategory = 0;
 
@@ -339,10 +340,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
         const SizedBox(height: 16),
-
-        // ------------------------------
-        // Category Tabs (with stable caching)
-        // ------------------------------
         Container(
           color: Colors.white,
           height: 80,
@@ -667,6 +664,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  @override
+  // TODO: implement wantKeepAlive
+  bool get wantKeepAlive => true;
 }
 
 // Pre-load images when property is likely to be viewed soon

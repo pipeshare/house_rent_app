@@ -1,28 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent_app/constants/constants.dart';
-import 'package:house_rent_app/models/Property.dart';
+import 'package:house_rent_app/models/Professional.dart';
 
-class PropertyGridCard extends StatelessWidget {
-  final Property property;
+class ProfessionalGridCard extends StatelessWidget {
+  final Professional pro;
   final VoidCallback onTap;
-  const PropertyGridCard({
+  const ProfessionalGridCard({
     super.key,
-    required this.property,
+    required this.pro,
     required this.onTap,
   });
 
-  Widget _buildBadge(String text, {Color? background}) {
+  Widget _badge(String label, {Color? bg}) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: background ?? Colors.white,
+        color: bg ?? Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.withOpacity(.15)),
+        border: Border.all(color: Colors.grey.withOpacity(.12)),
       ),
-      child: Text(
-        text,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-      ),
+      child: Text(label,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }
 
@@ -32,90 +30,84 @@ class PropertyGridCard extends StatelessWidget {
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: EdgeInsets.zero,
-      color: Colors.white,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(10.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image + Badges row
-              AspectRatio(
-                aspectRatio: 1.6,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.network(
-                        property.images[0],
-                        fit: BoxFit.cover,
-                        loadingBuilder: (c, child, progress) {
-                          if (progress == null) return child;
-                          return const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2));
-                        },
-                        errorBuilder: (c, o, s) {
-                          return Container(
-                            color: Colors.grey.shade200,
-                            child: const Center(
-                              child: Icon(Icons.broken_image,
-                                  size: 36, color: Colors.grey),
-                            ),
-                          );
-                        },
-                      ),
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: _buildBadge(
-                            '\$${property.price.toStringAsFixed(0)}',
-                            background: Colors.white),
-                      ),
-                      if (property.featured)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: _buildBadge('FEATURED',
-                              background: kPrimaryColor.withOpacity(.95)),
-                        ),
-                      if (!property.available)
-                        Positioned(
-                          bottom: 8,
-                          left: 8,
-                          child: _buildBadge('UNAVAILABLE',
-                              background: Colors.black.withOpacity(.6)),
-                        ),
-                    ],
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      pro.imageUrl,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, o, s) {
+                        return Container(
+                          width: 56,
+                          height: 56,
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.person,
+                              size: 30, color: Colors.grey),
+                        );
+                      },
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(pro.name,
+                            style: kBodyStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        SizedBox(height: 4),
+                        Text(
+                            '${pro.specialty.name[0].toUpperCase()}${pro.specialty.name.substring(1)} • ${pro.company}',
+                            style: kCaptionStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.star, size: 14),
+                            const SizedBox(width: 6),
+                            Text(pro.rating.toStringAsFixed(1),
+                                style: TextStyle(fontSize: 12)),
+                            const SizedBox(width: 12),
+                            const Icon(Icons.work_outline, size: 14),
+                            const SizedBox(width: 6),
+                            Text('${pro.yearsExperience}y',
+                                style: TextStyle(fontSize: 12)),
+                          ],
+                        )
+                      ],
+                    ),
+                  )
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(property.title,
-                  style: kBodyStyle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 4),
-              Text(property.address,
-                  style: kCaptionStyle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.bed, size: 14),
-                  const SizedBox(width: 6),
-                  Text('${property.beds}'),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.bathtub, size: 14),
-                  const SizedBox(width: 6),
-                  Text('${property.baths}'),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.square_foot, size: 14),
-                  const SizedBox(width: 6),
-                  Text('${property.area.toStringAsFixed(0)} m²'),
+                  _badge(pro.verified ? 'VERIFIED' : 'UNVERIFIED',
+                      bg: pro.verified
+                          ? kPrimaryColor.withOpacity(.10)
+                          : Colors.white),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () {
+                      // quick call handler placeholder
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Call ${pro.phone}')));
+                    },
+                    icon: const Icon(Icons.call, size: 20),
+                    tooltip: 'Call',
+                  ),
                 ],
               )
             ],
