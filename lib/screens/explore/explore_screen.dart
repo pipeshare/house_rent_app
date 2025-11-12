@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:house_rent_app/constants/constants.dart';
 import 'package:house_rent_app/models/DataModels.dart';

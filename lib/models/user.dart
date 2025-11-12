@@ -46,7 +46,7 @@ class User extends Equatable {
       _validateFirestoreData(data, doc.id);
 
       final createdAt = _parseTimestamp(data['createdAt']);
-      final updatedAt = _parseTimestamp(data['updatedAt']) ?? createdAt;
+      final updatedAt = _parseTimestamp(data['updatedAt']);
 
       return User(
         id: doc.id,

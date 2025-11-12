@@ -30,7 +30,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.example.house_rent_app"
-    compileSdkVersion 35  // ← CHANGE THIS
+    compileSdkVersion 36  // ← CHANGE THIS
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -48,7 +48,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.house_rent_app"
-        minSdkVersion 23
+        minSdkVersion flutter.minSdkVersion
         targetSdkVersion 35  // ← CHANGE THIS
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
