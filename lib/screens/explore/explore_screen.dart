@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:house_rent_app/constants/constants.dart';
-import 'package:house_rent_app/models/DataModels.dart';
 import 'package:house_rent_app/models/Professional.dart';
 import 'package:house_rent_app/models/Property.dart';
-import 'package:house_rent_app/screens/explore/components/filter_pill.dart';
 import 'package:house_rent_app/screens/explore/components/professional_grid_card.dart';
 import 'package:house_rent_app/screens/explore/components/property_grid_card.dart';
 
@@ -32,17 +30,26 @@ class _ExploreScreenState extends State<ExploreScreen>
   Set<String> activeFilterPills = {};
   Map<ProfessionalSpecialty, bool> professionalFilterSelection = {};
 
-  // Scroll controller isn't necessary for NotificationListener but keep reference for convenience
+  // Scroll controller with proper disposal
   final ScrollController _scrollController = ScrollController();
+
+  // Cache for filtered results
+  int _propertiesCacheKey = 0;
+  late List<Property> _cachedFilteredProperties = [];
+  int _professionalsCacheKey = 0;
+  late List<Professional> _cachedFilteredProfessionals = [];
 
   @override
   void initState() {
     super.initState();
     _seedInitial();
-    // initialize professional filter map
-    for (var s in ProfessionalSpecialty.values) {
-      professionalFilterSelection[s] = false;
-    }
+    // Initialize professional filter map efficiently
+    professionalFilterSelection = {
+      for (var s in ProfessionalSpecialty.values) s: false
+    };
+
+    // Add scroll listener instead of NotificationListener for better control
+    _scrollController.addListener(_onScroll);
   }
 
   void _seedInitial() {
@@ -52,51 +59,144 @@ class _ExploreScreenState extends State<ExploreScreen>
 
   Future<void> _refresh() async {
     await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+
     setState(() {
-      // Reset lists - in real app you'd fetch fresh data
       properties = Property.generate(12);
       professionals = Professional.generate(10);
       hasMore = true;
+      // Clear cache on refresh
+      _propertiesCacheKey = 0;
+      _professionalsCacheKey = 0;
     });
   }
 
   Future<void> _loadMore() async {
-    if (isLoadingMore || !hasMore) return;
+    if (isLoadingMore || !hasMore || !mounted) return;
+
     setState(() => isLoadingMore = true);
+
+    // Simulate API call
     await Future.delayed(const Duration(milliseconds: 900));
+
+    if (!mounted) return;
+
     setState(() {
       if (activeTab == ExploreTab.properties) {
         final next = Property.generate(8);
         properties.addAll(next);
         if (properties.length > 60) hasMore = false;
+        // Invalidate cache
+        _propertiesCacheKey = 0;
       } else {
         final next = Professional.generate(6);
         professionals.addAll(next);
         if (professionals.length > 60) hasMore = false;
+        // Invalidate cache
+        _professionalsCacheKey = 0;
       }
       isLoadingMore = false;
     });
   }
 
-  void _onScrollNotification(ScrollNotification notification) {
-    if (notification.metrics.pixels >=
-        notification.metrics.maxScrollExtent - 350) {
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 350) {
       _loadMore();
     }
   }
 
   void _onSearchChanged(String q) {
-    setState(() => searchQuery = q);
-    // placeholder: you'd normally trigger a filtered fetch; here we just update UI
+    setState(() {
+      searchQuery = q;
+      // Invalidate cache on search change
+      _propertiesCacheKey = 0;
+      _professionalsCacheKey = 0;
+    });
   }
 
   void _toggleFilterPill(String label) {
     setState(() {
-      if (activeFilterPills.contains(label))
+      if (activeFilterPills.contains(label)) {
         activeFilterPills.remove(label);
-      else
+      } else {
         activeFilterPills.add(label);
+      }
+      // Invalidate cache on filter change
+      _propertiesCacheKey = 0;
+      _professionalsCacheKey = 0;
     });
+  }
+
+  // Memoized filtered properties with caching
+  List<Property> get _filteredProperties {
+    final cacheKey = Object.hash(
+      properties.length,
+      searchQuery,
+      Object.hashAll(activeFilterPills),
+    );
+
+    if (_propertiesCacheKey == cacheKey) {
+      return _cachedFilteredProperties;
+    }
+
+    final filtered = properties.where((p) {
+      final q = searchQuery.toLowerCase();
+      if (q.isNotEmpty &&
+          !(p.title.toLowerCase().contains(q) ||
+              p.address.toLowerCase().contains(q))) {
+        return false;
+      }
+      if (activeFilterPills.contains('Featured') && !p.featured) return false;
+      if (activeFilterPills.contains('Available') && !p.available) return false;
+      return true;
+    }).toList();
+
+    _propertiesCacheKey = cacheKey;
+    _cachedFilteredProperties = filtered;
+    return filtered;
+  }
+
+  // Memoized filtered professionals with caching
+  List<Professional> get _filteredProfessionals {
+    final cacheKey = Object.hash(
+      professionals.length,
+      searchQuery,
+      Object.hashAll(professionalFilterSelection.entries.where((e) => e.value).map((e) => e.key)),
+    );
+
+    if (_professionalsCacheKey == cacheKey) {
+      return _cachedFilteredProfessionals;
+    }
+
+    final filtered = professionals.where((pr) {
+      final q = searchQuery.toLowerCase();
+      if (q.isNotEmpty &&
+          !(pr.name.toLowerCase().contains(q) ||
+              pr.company.toLowerCase().contains(q))) {
+        return false;
+      }
+      final activeSpecs = professionalFilterSelection.entries
+          .where((e) => e.value)
+          .map((e) => e.key)
+          .toSet();
+      if (activeSpecs.isNotEmpty && !activeSpecs.contains(pr.specialty)) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    _professionalsCacheKey = cacheKey;
+    _cachedFilteredProfessionals = filtered;
+    return filtered;
+  }
+
+  void _onCardTap(String id, {required bool isProperty}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content:
+          Text(isProperty ? 'Open Property $id' : 'Open Professional $id')),
+    );
   }
 
   void _openProfessionalFilterModal() async {
@@ -107,304 +207,195 @@ class _ExploreScreenState extends State<ExploreScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) {
-        final tempSelection =
-            Map<ProfessionalSpecialty, bool>.from(professionalFilterSelection);
-        return Column(
-          children: [
-            Padding(
-              padding: MediaQuery.of(context)
-                  .viewInsets
-                  .add(const EdgeInsets.all(16)),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(height: 6, width: 40, color: Colors.grey.shade200),
-                  const SizedBox(height: 12),
-                  const Text('Filter Professionals', style: kTitleStyle),
-                  const SizedBox(height: 8),
-                  const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Specialties', style: kCaptionStyle)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: ProfessionalSpecialty.values.map((s) {
-                      final label =
-                          s.name[0].toUpperCase() + s.name.substring(1);
-                      return FilterChip(
-                        label: Text(label),
-                        selected: tempSelection[s] ?? false,
-                        onSelected: (v) {
-                          setState(() {
-                            tempSelection[s] = v;
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.of(context)
-                                .pop(null); // cancel -> no change
-                          },
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop(tempSelection);
-                          },
-                          child: const Text('Apply'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            ),
-            // Filter pills
-            SliverToBoxAdapter(
-              child: Container(
-                height: 35,
-                padding: const EdgeInsets.only(left: kHorizontalPadding),
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    FilterPill(
-                      label: 'Featured',
-                      selected: activeFilterPills.contains('Featured'),
-                      onTap: () => _toggleFilterPill('Featured'),
-                    ),
-                    FilterPill(
-                      label: 'Available',
-                      selected: activeFilterPills.contains('Available'),
-                      onTap: () => _toggleFilterPill('Available'),
-                    ),
-                    FilterPill(
-                      label: '3+ beds',
-                      selected: activeFilterPills.contains('3+ beds'),
-                      onTap: () => _toggleFilterPill('3+ beds'),
-                    ),
-                    FilterPill(
-                      label: 'Verified',
-                      selected: activeFilterPills.contains('Verified'),
-                      onTap: () => _toggleFilterPill('Verified'),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      builder: (context) => _FilterBottomSheet(
+        initialSelection: professionalFilterSelection,
+      ),
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() {
         professionalFilterSelection = result;
+        // Invalidate cache on filter change
+        _professionalsCacheKey = 0;
       });
     }
   }
 
-  List<Property> get _filteredProperties {
-    var list = properties.where((p) {
-      final q = searchQuery.toLowerCase();
-      if (q.isNotEmpty &&
-          !(p.title.toLowerCase().contains(q) ||
-              p.address.toLowerCase().contains(q))) {
-        return false;
-      }
-      // Further pill-based filter logic (placeholder)
-      if (activeFilterPills.contains('Featured') && !p.featured) return false;
-      if (activeFilterPills.contains('Available') && !p.available) return false;
-      return true;
-    }).toList();
-    return list;
-  }
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
 
-  List<Professional> get _filteredProfessionals {
-    var list = professionals.where((pr) {
-      final q = searchQuery.toLowerCase();
-      if (q.isNotEmpty &&
-          !(pr.name.toLowerCase().contains(q) ||
-              pr.company.toLowerCase().contains(q))) {
-        return false;
-      }
-      // specialty filters
-      final activeSpecs = professionalFilterSelection.entries
-          .where((e) => e.value)
-          .map((e) => e.key)
-          .toSet();
-      if (activeSpecs.isNotEmpty && !activeSpecs.contains(pr.specialty)) {
-        return false;
-      }
-      return true;
-    }).toList();
-    return list;
-  }
+    return Scaffold(
+      backgroundColor: kBackgroundColor,
+      appBar: _buildAppBar(),
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            // Top tabs
+            const SliverToBoxAdapter(
+              child: _TabSection(),
+            ),
 
-  void _onCardTap(String id, {required bool isProperty}) {
-    // Placeholder navigation handler
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content:
-              Text(isProperty ? 'Open Property $id' : 'Open Professional $id')),
+            // Grid content based on active tab
+            _buildContentGrid(),
+
+            // Loading indicator or end marker
+            _buildLoadingIndicator(),
+
+            // Bottom padding
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          ],
+        ),
+      ),
     );
-    // Example actual navigation:
-    // Navigator.of(context).push(MaterialPageRoute(builder: (_) => DetailsScreen(...)));
+  }
+
+  // Extracted AppBar widget
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 1,
+      titleSpacing: 0,
+      title: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+        child: Row(
+          children: [
+            const SizedBox(width: 4),
+            Expanded(
+              child: _SearchBar(
+                searchQuery: searchQuery,
+                onSearchChanged: _onSearchChanged,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.tune),
+              onPressed: _openProfessionalFilterModal,
+              tooltip: 'Open filter modal',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Extracted content grid
+  Widget _buildContentGrid() {
+    if (activeTab == ExploreTab.properties) {
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: kHorizontalPadding),
+        sliver: SliverGrid(
+          delegate: SliverChildBuilderDelegate(
+                (context, index) {
+              final items = _filteredProperties;
+              if (index >= items.length) return null;
+              final p = items[index];
+              return PropertyGridCard(
+                property: p,
+                onTap: () => _onCardTap(p.id, isProperty: true),
+              );
+            },
+            childCount: _filteredProperties.length,
+          ),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: kSpacing,
+            mainAxisSpacing: kSpacing,
+            childAspectRatio: 0.75,
+          ),
+        ),
+      );
+    } else {
+      return SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: kHorizontalPadding),
+        sliver: SliverGrid(
+          delegate: SliverChildBuilderDelegate(
+                (context, index) {
+              final items = _filteredProfessionals;
+              if (index >= items.length) return null;
+              final pr = items[index];
+              return ProfessionalGridCard(
+                pro: pr,
+                onTap: () => _onCardTap(pr.id, isProperty: false),
+              );
+            },
+            childCount: _filteredProfessionals.length,
+          ),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: kSpacing,
+            mainAxisSpacing: kSpacing,
+            childAspectRatio: 0.7,
+          ),
+        ),
+      );
+    }
+  }
+
+  // Extracted loading indicator
+  Widget _buildLoadingIndicator() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Center(
+          child: isLoadingMore
+              ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2))
+              : (!hasMore
+              ? const Text('No more results', style: kCaptionStyle)
+              : const SizedBox.shrink()),
+        ),
+      ),
+    );
   }
 
   @override
+  void dispose() {
+    _scrollController.dispose(); // Critical: prevent memory leaks
+    super.dispose();
+  }
+
+  @override
+  bool get wantKeepAlive => true;
+}
+
+// Extracted Tab Section as const widget
+class _TabSection extends StatelessWidget {
+  const _TabSection();
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        titleSpacing: 0,
-        title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: Row(
-            children: [
-              const SizedBox(width: 4),
-              Expanded(
-                child: _buildSearchBar(),
-              ),
-              IconButton(
-                icon: const Icon(Icons.tune),
-                onPressed: _openProfessionalFilterModal,
-                tooltip: 'Open filter modal',
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          _onScrollNotification(notification);
-          return false;
-        },
-        child: RefreshIndicator(
-          onRefresh: _refresh,
-          child: CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // Top tabs: properties / professionals
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: kHorizontalPadding, vertical: 12),
-                  child: Row(
-                    children: [
-                      _buildTabButton('Properties', ExploreTab.properties),
-                      const SizedBox(width: 8),
-                      _buildTabButton(
-                          'Professionals', ExploreTab.professionals),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Section title
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 8),
-              ),
-
-              // Grid
-              if (activeTab == ExploreTab.properties)
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: kHorizontalPadding),
-                  sliver: SliverGrid(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final items = _filteredProperties;
-                        if (index >= items.length) return null;
-                        final p = items[index];
-                        return PropertyGridCard(
-                          property: p,
-                          onTap: () => _onCardTap(p.id, isProperty: true),
-                        );
-                      },
-                      childCount: _filteredProperties.length,
-                    ),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: kSpacing,
-                      mainAxisSpacing: kSpacing,
-                      childAspectRatio: 0.75, // requirement
-                    ),
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: kHorizontalPadding),
-                  sliver: SliverGrid(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final items = _filteredProfessionals;
-                        if (index >= items.length) return null;
-                        final pr = items[index];
-                        return ProfessionalGridCard(
-                          pro: pr,
-                          onTap: () => _onCardTap(pr.id, isProperty: false),
-                        );
-                      },
-                      childCount: _filteredProfessionals.length,
-                    ),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: kSpacing,
-                      mainAxisSpacing: kSpacing,
-                      childAspectRatio: 0.7, // requirement
-                    ),
-                  ),
-                ),
-
-              // If loading more show a loader
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Center(
-                    child: isLoadingMore
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : (!hasMore
-                            ? const Text('No more results',
-                                style: kCaptionStyle)
-                            : const SizedBox.shrink()),
-                  ),
-                ),
-              ),
-              // bottom padding
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
-            ],
-          ),
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kHorizontalPadding, vertical: 12),
+      child: Row(
+        children: [
+          _TabButton(label: 'Properties', tab: ExploreTab.properties),
+          const SizedBox(width: 8),
+          _TabButton(label: 'Professionals', tab: ExploreTab.professionals),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildTabButton(String label, ExploreTab tab) {
-    final selected = activeTab == tab;
+// Extracted Tab Button with state management
+class _TabButton extends StatelessWidget {
+  final String label;
+  final ExploreTab tab;
+
+  const _TabButton({required this.label, required this.tab});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.findAncestorStateOfType<_ExploreScreenState>();
+    final selected = state?.activeTab == tab;
+
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => activeTab = tab),
+        onTap: () => state?.setState(() => state.activeTab = tab),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
@@ -427,8 +418,20 @@ class _ExploreScreenState extends State<ExploreScreen>
       ),
     );
   }
+}
 
-  Widget _buildSearchBar() {
+// Extracted Search Bar as const widget
+class _SearchBar extends StatelessWidget {
+  final String searchQuery;
+  final ValueChanged<String> onSearchChanged;
+
+  const _SearchBar({
+    required this.searchQuery,
+    required this.onSearchChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -447,7 +450,7 @@ class _ExploreScreenState extends State<ExploreScreen>
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
-              onChanged: _onSearchChanged,
+              onChanged: onSearchChanged,
               decoration: const InputDecoration(
                 hintText: 'Search properties or professionals',
                 hintStyle: TextStyle(
@@ -462,17 +465,91 @@ class _ExploreScreenState extends State<ExploreScreen>
           ),
           if (searchQuery.isNotEmpty)
             GestureDetector(
-              onTap: () {
-                setState(() => searchQuery = '');
-              },
+              onTap: () => onSearchChanged(''),
               child: const Icon(Icons.close, size: 18),
             ),
         ],
       ),
     );
   }
+}
+
+// Extracted Filter Bottom Sheet
+class _FilterBottomSheet extends StatefulWidget {
+  final Map<ProfessionalSpecialty, bool> initialSelection;
+
+  const _FilterBottomSheet({required this.initialSelection});
 
   @override
-  // TODO: implement wantKeepAlive
-  bool get wantKeepAlive => true;
+  State<_FilterBottomSheet> createState() => _FilterBottomSheetState();
+}
+
+class _FilterBottomSheetState extends State<_FilterBottomSheet> {
+  late Map<ProfessionalSpecialty, bool> tempSelection;
+
+  @override
+  void initState() {
+    super.initState();
+    tempSelection = Map<ProfessionalSpecialty, bool>.from(widget.initialSelection);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: MediaQuery.of(context).viewInsets.add(const EdgeInsets.all(16)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(height: 6, width: 40, color: Colors.grey.shade200),
+              const SizedBox(height: 12),
+              const Text('Filter Professionals', style: kTitleStyle),
+              const SizedBox(height: 8),
+              const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Specialties', style: kCaptionStyle)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: ProfessionalSpecialty.values.map((s) {
+                  final label = s.name[0].toUpperCase() + s.name.substring(1);
+                  return FilterChip(
+                    label: Text(label),
+                    selected: tempSelection[s] ?? false,
+                    onSelected: (v) {
+                      setState(() {
+                        tempSelection[s] = v;
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(null),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(tempSelection),
+                      child: const Text('Apply'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

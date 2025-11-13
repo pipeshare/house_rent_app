@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,18 +24,49 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isEmailValid = false;
   bool _isPasswordValid = false;
 
+  // Debounce timers to prevent excessive rebuilds
+  Timer? _emailDebounceTimer;
+  Timer? _passwordDebounceTimer;
+
   @override
   void initState() {
     super.initState();
-    emailCtrl.addListener(_validateEmail);
-    passCtrl.addListener(_validatePassword);
+    emailCtrl.addListener(_onEmailChanged);
+    passCtrl.addListener(_onPasswordChanged);
   }
 
   @override
   void dispose() {
+    _emailDebounceTimer?.cancel();
+    _passwordDebounceTimer?.cancel();
     emailCtrl.dispose();
     passCtrl.dispose();
     super.dispose();
+  }
+
+  void _onEmailChanged() {
+    _emailDebounceTimer?.cancel();
+    _emailDebounceTimer = Timer(const Duration(milliseconds: 300), _validateEmail);
+  }
+
+  void _onPasswordChanged() {
+    _passwordDebounceTimer?.cancel();
+    _passwordDebounceTimer = Timer(const Duration(milliseconds: 300), _validatePassword);
+  }
+
+  void _validateEmail() {
+    final email = emailCtrl.text.trim();
+    final isValid = RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
+    if (_isEmailValid != isValid) {
+      setState(() => _isEmailValid = isValid);
+    }
+  }
+
+  void _validatePassword() {
+    final isValid = passCtrl.text.isNotEmpty;
+    if (_isPasswordValid != isValid) {
+      setState(() => _isPasswordValid = isValid);
+    }
   }
 
   @override
@@ -49,200 +81,50 @@ class _LoginScreenState extends State<LoginScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
-                  // Header
-                  const SizedBox(height: 110),
-                  Column(
-                    children: [
-                      Icon(
-                        Icons.houseboat,
-                        size: 64,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Welcome Back',
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Sign in to your account',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey.shade600,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                  // Header - extracted to separate widget
+                  const _LoginHeader(),
                   const SizedBox(height: 32),
 
-                  // Email Field
-                  TextFormField(
+                  // Email Field - extracted
+                  _EmailField(
                     controller: emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      suffixIcon: _buildValidationIcon(_isEmailValid),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide:
-                            BorderSide(color: _getBorderColor(_isEmailValid)),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
-                          .hasMatch(value.trim())) {
-                        return 'Please enter a valid email';
-                      }
-                      return null;
-                    },
+                    isValid: _isEmailValid,
                   ),
                   const SizedBox(height: 16),
 
-                  // Password Field
-                  TextFormField(
+                  // Password Field - extracted
+                  _PasswordField(
                     controller: passCtrl,
-                    obscureText: obscure,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildValidationIcon(_isPasswordValid),
-                          IconButton(
-                            onPressed: () => setState(() => obscure = !obscure),
-                            icon: Icon(
-                              obscure ? Icons.visibility_off : Icons.visibility,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide: BorderSide(
-                            color: _getBorderColor(_isPasswordValid)),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      return null;
-                    },
+                    obscure: obscure,
+                    isValid: _isPasswordValid,
+                    onToggleObscure: () => setState(() => obscure = !obscure),
                   ),
                   const SizedBox(height: 8),
 
-                  // Forgot Password
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: loading ? null : _resetPassword,
-                      child: Text(
-                        'Forgot Password?',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                  // Forgot Password - extracted
+                  _ForgotPasswordButton(
+                    loading: loading,
+                    onPressed: _resetPassword,
                   ),
                   const SizedBox(height: 16),
 
-                  // Sign In Button
-                  FilledButton(
-                    onPressed: loading ? null : _login,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                    ),
-                    child: loading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Sign In',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
+                  // Sign In Button - extracted
+                  _SignInButton(
+                    loading: loading,
+                    onPressed: _login,
                   ),
                   const SizedBox(height: 24),
 
-                  // Divider
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'OR',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                    ],
-                  ),
+                  // Divider - extracted
+                  const _OrDivider(),
                   const SizedBox(height: 24),
 
-                  // Register redirect
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Don't have an account?",
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                      TextButton(
-                        onPressed: loading
-                            ? null
-                            : () {
-                                Navigator.pushReplacementNamed(
-                                    context, RegisterScreen.route);
-                              },
-                        child: Text(
-                          'Create one',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  // Register redirect - extracted
+                  _RegisterRedirect(loading: loading),
                   const SizedBox(height: 24),
 
-                  // Terms and Privacy
-                  Text(
-                    'By continuing you agree to our Terms and Privacy Policy.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
+                  // Terms and Privacy - extracted
+                  const _TermsText(),
                 ],
               ),
             ),
@@ -250,19 +132,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
-  }
-
-  void _validateEmail() {
-    final email = emailCtrl.text.trim();
-    setState(() {
-      _isEmailValid = RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
-    });
-  }
-
-  void _validatePassword() {
-    setState(() {
-      _isPasswordValid = passCtrl.text.isNotEmpty;
-    });
   }
 
   Future<void> _login() async {
@@ -283,47 +152,43 @@ class _LoginScreenState extends State<LoginScreen> {
       } on FirebaseException catch (e) {
         if (e.code == 'permission-denied') {
           log('⚠️ Firestore permission denied - check security rules');
-          // Continue login anyway - the user is authenticated
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
                     'Logged in successfully! However, there was an issue accessing your profile data. '
-                    'This might be due to security settings.'),
+                        'This might be due to security settings.'),
               ),
             );
           }
         } else {
           log('⚠️ Other Firestore error: ${e.code} - ${e.message}');
-          // Continue login anyway
         }
       } catch (e) {
         log('⚠️ Unexpected error ensuring user doc: $e');
-        // Continue login anyway
       }
 
       // Success - navigate to home
       if (mounted) {
         log('🚀 Navigating to home screen...');
-        // Just let the AuthWrapper handle the navigation automatically
-        // The auth state change will trigger the home screen
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Logged you in. Enjoy!'),
           ),
         );
-        // AuthWrapper();
       }
     } on FirebaseAuthException catch (e) {
       log('❌ Firebase Auth Error: ${e.code} - ${e.message}');
       _handleAuthError(e, email);
     } catch (e) {
       log('❌ General Error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('An unexpected error occurred. Please try again.'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('An unexpected error occurred. Please try again.'),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -335,23 +200,23 @@ class _LoginScreenState extends State<LoginScreen> {
     switch (e.code) {
       case 'user-not-found':
         message =
-            'No account found with email: $email\n\nPlease check your email or create a new account.';
+        'No account found with email: $email\n\nPlease check your email or create a new account.';
         break;
       case 'wrong-password':
         message =
-            'Incorrect password for: $email\n\nPlease try again or use "Forgot Password" to reset it.';
+        'Incorrect password for: $email\n\nPlease try again or use "Forgot Password" to reset it.';
         break;
       case 'invalid-email':
         message =
-            'The email address "$email" is not valid.\n\nPlease check and try again.';
+        'The email address "$email" is not valid.\n\nPlease check and try again.';
         break;
       case 'user-disabled':
         message =
-            'The account $email has been disabled.\n\nPlease contact support.';
+        'The account $email has been disabled.\n\nPlease contact support.';
         break;
       case 'too-many-requests':
         message =
-            'Too many failed login attempts for $email.\n\nPlease try again in a few minutes.';
+        'Too many failed login attempts for $email.\n\nPlease try again in a few minutes.';
         break;
       default:
         message = e.message ?? 'Login failed for $email. Please try again.';
@@ -420,17 +285,17 @@ class _LoginScreenState extends State<LoginScreen> {
         case 'user-not-found':
           title = 'Account Not Found';
           userMessage =
-              'No account found with this email address. Please check the email or create a new account.';
+          'No account found with this email address. Please check the email or create a new account.';
           break;
         case 'invalid-email':
           title = 'Invalid Email';
           userMessage =
-              'The email address is not valid. Please enter a valid email address.';
+          'The email address is not valid. Please enter a valid email address.';
           break;
         case 'too-many-requests':
           title = 'Too Many Requests';
           userMessage =
-              'Too many password reset attempts. Please try again later.';
+          'Too many password reset attempts. Please try again later.';
           break;
         default:
           title = 'Reset Failed';
@@ -441,19 +306,294 @@ class _LoginScreenState extends State<LoginScreen> {
       _showErrorDialog(title, userMessage);
     }
   }
+}
 
-  Color _getBorderColor(bool isValid) {
-    if (!isValid) return Colors.grey.shade400;
-    return isValid ? Colors.green : Colors.orange;
+// Extracted Widgets for Better Performance
+
+class _LoginHeader extends StatelessWidget {
+  const _LoginHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        SizedBox(height: 110),
+        Column(
+          children: [
+            Icon(
+              Icons.houseboat,
+              size: 64,
+              color: Colors.blue, // Using direct color instead of theme lookup
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Welcome Back',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Sign in to your account',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ],
+    );
   }
+}
 
-  Widget _buildValidationIcon(bool isValid) {
+class _EmailField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool isValid;
+
+  const _EmailField({
+    required this.controller,
+    required this.isValid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.emailAddress,
+      decoration: InputDecoration(
+        labelText: 'Email',
+        prefixIcon: const Icon(Icons.email_outlined),
+        suffixIcon: _ValidationIcon(isValid: isValid),
+        border: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(5)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(5)),
+          borderSide: BorderSide(color: _getBorderColor(isValid)),
+        ),
+      ),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Please enter your email';
+        }
+        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
+          return 'Please enter a valid email';
+        }
+        return null;
+      },
+    );
+  }
+}
+
+class _PasswordField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool obscure;
+  final bool isValid;
+  final VoidCallback onToggleObscure;
+
+  const _PasswordField({
+    required this.controller,
+    required this.obscure,
+    required this.isValid,
+    required this.onToggleObscure,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        labelText: 'Password',
+        prefixIcon: const Icon(Icons.lock_outline),
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ValidationIcon(isValid: isValid),
+            IconButton(
+              onPressed: onToggleObscure,
+              icon: Icon(
+                obscure ? Icons.visibility_off : Icons.visibility,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+        border: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(5)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(5)),
+          borderSide: BorderSide(color: _getBorderColor(isValid)),
+        ),
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter your password';
+        }
+        return null;
+      },
+    );
+  }
+}
+
+class _ValidationIcon extends StatelessWidget {
+  final bool isValid;
+
+  const _ValidationIcon({required this.isValid});
+
+  @override
+  Widget build(BuildContext context) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       child: isValid
-          ? Icon(Icons.check_circle,
-              color: Colors.green, size: 20, key: UniqueKey())
+          ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
           : const SizedBox(width: 20),
     );
   }
+}
+
+class _ForgotPasswordButton extends StatelessWidget {
+  final bool loading;
+  final VoidCallback onPressed;
+
+  const _ForgotPasswordButton({
+    required this.loading,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: loading ? null : onPressed,
+        child: const Text(
+          'Forgot Password?',
+          style: TextStyle(
+            color: Colors.blue,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SignInButton extends StatelessWidget {
+  final bool loading;
+  final VoidCallback onPressed;
+
+  const _SignInButton({
+    required this.loading,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton(
+      onPressed: loading ? null : onPressed,
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+        backgroundColor: Colors.blue,
+      ),
+      child: loading
+          ? const SizedBox(
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation(Colors.white),
+        ),
+      )
+          : const Text(
+        'Sign In',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        Expanded(child: Divider(color: Colors.grey)),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'OR',
+            style: TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: Colors.grey)),
+      ],
+    );
+  }
+}
+
+class _RegisterRedirect extends StatelessWidget {
+  final bool loading;
+
+  const _RegisterRedirect({required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          "Don't have an account?",
+          style: TextStyle(color: Colors.grey),
+        ),
+        TextButton(
+          onPressed: loading
+              ? null
+              : () {
+            Navigator.pushReplacementNamed(context, RegisterScreen.route);
+          },
+          child: const Text(
+            'Create one',
+            style: TextStyle(
+              color: Colors.blue,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TermsText extends StatelessWidget {
+  const _TermsText();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text(
+      'By continuing you agree to our Terms and Privacy Policy.',
+      style: TextStyle(
+        color: Colors.grey,
+        fontSize: 12,
+      ),
+      textAlign: TextAlign.center,
+    );
+  }
+}
+
+// Helper function outside widget tree
+Color _getBorderColor(bool isValid) {
+  return isValid ? Colors.green : Colors.grey;
 }
