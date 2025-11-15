@@ -2,16 +2,25 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:house_rent_app/core/constants.dart';
 import 'package:house_rent_app/core/routes/route_generator.dart';
 import 'package:house_rent_app/core/services/navigation_service.dart';
 import 'package:house_rent_app/services/auth_gate.dart';
 import 'package:house_rent_app/services/firebase_manual.dart';
+import 'package:house_rent_app/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     log('🚀 Starting Firebase initialization...');
+
+    await Supabase.initialize(
+      url: kSupabaseUrl,
+      anonKey: kSupabaseAnonKey,
+    );
+
     await Firebase.initializeApp(
       options: FirebaseManualConfig.androidOptions,
     );
