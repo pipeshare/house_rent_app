@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/rendering.dart';
 import 'package:house_rent_app/core/helpers.dart';
+import 'package:house_rent_app/core/routes/route_generator.dart';
+import 'package:house_rent_app/core/routes/routes.dart';
 import 'package:house_rent_app/models/DataModels.dart';
 import 'package:house_rent_app/models/Professional.dart';
 import 'package:house_rent_app/screens/home/property_card.dart';
@@ -655,7 +657,7 @@ class _HomeScreenState extends State<HomeScreen>
               return PropertyCard(
                 property: property,
                 onTap: () {
-                  // Navigate to property details
+                  Navigator.of(context).pushNamed(RouteNames.propertyDetails);
                 },
               );
             },
