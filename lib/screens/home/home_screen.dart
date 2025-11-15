@@ -29,15 +29,18 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {
       _currentPropertiesStream = selectedCategory == 'All'
           ? _firestore
-          .collection('posts')
-          .orderBy('createdAt', descending: true)
-          .snapshots()
+              .collection('posts')
+              .orderBy('createdAt', descending: true)
+              .snapshots()
           : _firestore
-          .collection('posts')
-          .where('category', isEqualTo: selectedCategory)
-          .snapshots();
+              .collection('posts')
+              .where('category', isEqualTo: selectedCategory)
+              .snapshots();
     });
   }
+
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
 
   final Map<int, Widget> _categoryCache = {};
 
@@ -57,6 +60,17 @@ class _HomeScreenState extends State<HomeScreen>
     _loadCategories();
     _loadProfessionals();
     _updatePropertiesStream();
+
+    // Listen to sheet size changes
+    _sheetController.addListener(() {
+      final isMapMode = _sheetController.size < 0.5;
+      if (_isMapMode != isMapMode) {
+        setState(() {
+          _isMapMode = isMapMode;
+          _showSearchBar = !_isMapMode;
+        });
+      }
+    });
   }
 
   Future<void> _loadProfessionals() async {
@@ -142,6 +156,31 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  // Method to toggle between map and list view
+  void _toggleSheet() {
+    if (_sheetController.size > 0.5) {
+      // If currently in list view, switch to map view
+      _sheetController.animateTo(
+        0.04, // minChildSize
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      // If currently in map view, switch to list view
+      _sheetController.animateTo(
+        1.0, // maxChildSize
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,6 +220,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   DraggableScrollableSheet(
+                    controller: _sheetController,
                     initialChildSize: 1,
                     minChildSize: 0.04,
                     maxChildSize: 1,
@@ -219,14 +259,18 @@ class _HomeScreenState extends State<HomeScreen>
                           child: Column(
                             children: [
                               // Grab Handle
-                              Container(
-                                width: 40,
-                                height: 4,
-                                margin:
-                                    const EdgeInsets.only(top: 12, bottom: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[400],
-                                  borderRadius: BorderRadius.circular(2),
+                              GestureDetector(
+                                onTap: _toggleSheet,
+                                behavior: HitTestBehavior.opaque,
+                                child: Container(
+                                  width: 40,
+                                  height: 5,
+                                  margin:
+                                      const EdgeInsets.only(top: 12, bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[400],
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
                               ),
                               // Content
@@ -244,7 +288,9 @@ class _HomeScreenState extends State<HomeScreen>
                                         child: _buildFeaturedHeader()),
                                     // Properties List from Firestore
                                     _buildPropertiesList(),
-                                    _PropertiesListWidget(propertiesStream: _currentPropertiesStream),
+                                    _PropertiesListWidget(
+                                        propertiesStream:
+                                            _currentPropertiesStream),
                                   ],
                                 ),
                               ),
@@ -722,7 +768,6 @@ Future<void> clearImageCache() async {
   await CustomCacheManager().emptyCache();
 }
 
-
 // Create a separate stateful widget for the properties list
 class _PropertiesListWidget extends StatefulWidget {
   final Stream<QuerySnapshot>? propertiesStream;
@@ -765,7 +810,7 @@ class _PropertiesListWidgetState extends State<_PropertiesListWidget> {
 
         return SliverList(
           delegate: SliverChildBuilderDelegate(
-                (context, index) {
+            (context, index) {
               final property = properties[index].data() as Map<String, dynamic>;
               return PropertyCard(
                 property: property,
