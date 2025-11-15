@@ -21,7 +21,23 @@ class _HomeScreenState extends State<HomeScreen>
 
   bool _isMapMode = false;
   bool _showSearchBar = true;
-  final ScrollController _scrollController = ScrollController();
+  Stream<QuerySnapshot>? _currentPropertiesStream;
+
+  void _updatePropertiesStream() {
+    String selectedCategory = categories[_selectedCategory].name;
+
+    setState(() {
+      _currentPropertiesStream = selectedCategory == 'All'
+          ? _firestore
+          .collection('posts')
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          : _firestore
+          .collection('posts')
+          .where('category', isEqualTo: selectedCategory)
+          .snapshots();
+    });
+  }
 
   final Map<int, Widget> _categoryCache = {};
 
@@ -40,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     _loadCategories();
     _loadProfessionals();
+    _updatePropertiesStream();
   }
 
   Future<void> _loadProfessionals() async {
@@ -227,6 +244,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         child: _buildFeaturedHeader()),
                                     // Properties List from Firestore
                                     _buildPropertiesList(),
+                                    _PropertiesListWidget(propertiesStream: _currentPropertiesStream),
                                   ],
                                 ),
                               ),
@@ -408,6 +426,7 @@ class _HomeScreenState extends State<HomeScreen>
                     _categoryCache.remove(index * 10);
                     _categoryCache.remove(index * 10 + 1);
                   });
+                  _updatePropertiesStream();
                 }
               },
               child: _buildCategoryTab(category, isSelected, index),
@@ -587,17 +606,7 @@ class _HomeScreenState extends State<HomeScreen>
     String selectedCategory = categories[_selectedCategory].name;
 
     return StreamBuilder<QuerySnapshot>(
-      stream: selectedCategory == 'All'
-          ? _firestore
-              .collection('posts')
-              .orderBy('createdAt', descending: true)
-              .snapshots()
-          : _firestore
-              .collection('posts')
-              .where('category', isEqualTo: selectedCategory)
-              // Remove orderBy temporarily while index is building
-              // .orderBy('createdAt', descending: true)
-              .snapshots(),
+      stream: _currentPropertiesStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           // Check if it's an index error
@@ -711,4 +720,68 @@ void preloadPropertyImages(List<String> imageUrls) {
 // Clear cache when needed (e.g., in settings)
 Future<void> clearImageCache() async {
   await CustomCacheManager().emptyCache();
+}
+
+
+// Create a separate stateful widget for the properties list
+class _PropertiesListWidget extends StatefulWidget {
+  final Stream<QuerySnapshot>? propertiesStream;
+
+  const _PropertiesListWidget({required this.propertiesStream});
+
+  @override
+  State<_PropertiesListWidget> createState() => _PropertiesListWidgetState();
+}
+
+class _PropertiesListWidgetState extends State<_PropertiesListWidget> {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: widget.propertiesStream,
+      builder: (context, snapshot) {
+        // Your existing stream builder logic
+        if (snapshot.hasError) {
+          // Error handling
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return SliverToBoxAdapter(
+            child: _buildEmptyState(),
+          );
+        }
+
+        final properties = snapshot.data!.docs;
+
+        // Manual sorting logic...
+
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+                (context, index) {
+              final property = properties[index].data() as Map<String, dynamic>;
+              return PropertyCard(
+                property: property,
+                onTap: () {
+                  // Navigate to property details
+                },
+              );
+            },
+            childCount: properties.length,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Text("");
+  }
 }
