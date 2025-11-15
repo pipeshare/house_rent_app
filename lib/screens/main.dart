@@ -65,10 +65,10 @@ class _MainScreenState extends State<MainScreen> {
           }
         },
       ),
-      bottomNavigationBar: _MainBottomNav(
-        navIndex: _navIndex,
-        onNavTap: _onNavTap,
-      ),
+      // bottomNavigationBar: _MainBottomNav(
+      //   navIndex: _navIndex,
+      //   onNavTap: _onNavTap,
+      // ),
     );
   }
 }
@@ -217,7 +217,7 @@ class _AdvancedMainScreenState extends State<AdvancedMainScreen> {
     // Use animateToPage for smooth transition or jumpToPage for instant
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 1),
       curve: Curves.easeInOut,
     );
   }

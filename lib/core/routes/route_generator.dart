@@ -4,7 +4,7 @@ import 'package:house_rent_app/core/routes/routes.dart';
 import 'package:house_rent_app/screens/auth/login_screen.dart';
 import 'package:house_rent_app/screens/auth/register_screen.dart';
 import 'package:house_rent_app/screens/forgot_password_screen/forgot_password_screen.dart';
-import 'package:house_rent_app/screens/main_screen.dart';
+import 'package:house_rent_app/screens/main.dart';
 
 class RouteGenerator {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -19,7 +19,7 @@ class RouteGenerator {
         return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
 
       case RouteNames.index:
-        return MaterialPageRoute(builder: (_) => const MainScreen());
+        return MaterialPageRoute(builder: (_) => const AdvancedMainScreen());
 
       // case RouteNames.profile:
       //   if (args is ProfileArguments) {

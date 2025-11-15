@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/rendering.dart';
 import 'package:house_rent_app/core/helpers.dart';
 import 'package:house_rent_app/models/DataModels.dart';
 import 'package:house_rent_app/models/Professional.dart';
@@ -20,8 +19,6 @@ class _HomeScreenState extends State<HomeScreen>
   int _selectedCategory = 0;
 
   bool _isMapMode = false;
-  bool _showSearchBar = true;
-  final ScrollController _scrollController = ScrollController();
 
   final Map<int, Widget> _categoryCache = {};
 
@@ -50,9 +47,9 @@ class _HomeScreenState extends State<HomeScreen>
         final data = doc.data();
 
         // Convert the specialty string to enum safely
-        final specialtyStr = (data['specialty'] ?? '').toString();
+        final specialtyStr = (data['specialty'] ?? '').toString().toLowerCase();
         final specialty = ProfessionalSpecialty.values.firstWhere(
-          (e) => e.name.toLowerCase() == specialtyStr,
+              (e) => e.name.toLowerCase() == specialtyStr,
           orElse: () => ProfessionalSpecialty.agent, // fallback if unknown
         );
 
@@ -129,14 +126,14 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Animated Header
-            AnimatedContainer(
-              // color: Colors.black,
-              duration: const Duration(milliseconds: 300),
-              // height: _isMapMode ? 0 : 210,
+      body: Column(
+        children: [
+          // Animated Header
+          AnimatedContainer(
+            // color: Colors.black,
+            duration: const Duration(milliseconds: 300),
+            height: _isMapMode ? 0 : 210,
+            child: SafeArea(
               child: Opacity(
                 opacity: _isMapMode ? 0 : 1.0,
                 child: Container(
@@ -150,104 +147,87 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ),
-            Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Container(
-                      color: Colors.grey[50],
-                      child: Image.network(
-                        'https://tile.openstreetmap.org/5/17/16.png',
-                        fit: BoxFit.cover,
-                        opacity: const AlwaysStoppedAnimation(0.3),
-                      ),
+          ),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.grey[50],
+                    child: Image.network(
+                      'https://tile.openstreetmap.org/5/17/16.png',
+                      fit: BoxFit.cover,
+                      opacity: const AlwaysStoppedAnimation(0.3),
                     ),
                   ),
-                  DraggableScrollableSheet(
-                    initialChildSize: 1,
-                    minChildSize: 0.04,
-                    maxChildSize: 1,
-                    snap: true,
-                    builder: (context, scrollController) {
-                      scrollController.addListener(() {
-                        if (scrollController.position.userScrollDirection ==
-                            ScrollDirection.forward) {
-                          setState(() {
-                            _showSearchBar = true;
-                          });
-                        } else if (scrollController
-                                .position.userScrollDirection ==
-                            ScrollDirection.reverse) {
-                          setState(() {
-                            _showSearchBar = false;
-                          });
-                        }
-                      });
-                      return NotificationListener<
-                          DraggableScrollableNotification>(
-                        onNotification: (notification) {
-                          setState(() {
-                            _isMapMode = notification.extent < 0.5;
-                            _showSearchBar = !_isMapMode;
-                          });
-                          return true;
-                        },
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(0),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              // Grab Handle
-                              Container(
-                                width: 40,
-                                height: 4,
-                                margin:
-                                    const EdgeInsets.only(top: 12, bottom: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[400],
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              // Content
-                              Expanded(
-                                child: CustomScrollView(
-                                  controller: scrollController,
-                                  physics: const BouncingScrollPhysics(),
-                                  slivers: [
-                                    // Find Professionals Section
-                                    SliverToBoxAdapter(
-                                      child: _buildProfessionalsSection(),
-                                    ),
-                                    // Featured Properties
-                                    SliverToBoxAdapter(
-                                        child: _buildFeaturedHeader()),
-                                    // Properties List from Firestore
-                                    _buildPropertiesList(),
-                                  ],
-                                ),
-                              ),
-                            ],
+                ),
+                DraggableScrollableSheet(
+                  initialChildSize: 1,
+                  minChildSize: 0.12,
+                  maxChildSize: 1,
+                  snap: true,
+                  builder: (context, scrollController) {
+                    return NotificationListener<
+                        DraggableScrollableNotification>(
+                      onNotification: (notification) {
+                        setState(() {
+                          _isMapMode = notification.extent < 0.5;
+                        });
+                        return true;
+                      },
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(0),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ],
-              ),
+                        child: Column(
+                          children: [
+                            // Grab Handle
+                            Container(
+                              width: 40,
+                              height: 4,
+                              margin: const EdgeInsets.only(top: 12, bottom: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[400],
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            // Content
+                            Expanded(
+                              child: CustomScrollView(
+                                controller: scrollController,
+                                physics: const BouncingScrollPhysics(),
+                                slivers: [
+                                  // Find Professionals Section
+                                  SliverToBoxAdapter(
+                                      child: _buildProfessionalsSection()),
+                                  // Featured Properties
+                                  SliverToBoxAdapter(
+                                      child: _buildFeaturedHeader()),
+                                  // Properties List from Firestore
+                                  _buildPropertiesList(),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       // Bottom Navigation Bar
-      // bottomNavigationBar: AnimatedContainer(
-      //   duration: const Duration(milliseconds: 300),
-      //   height: _isMapMode ? 0 : kBottomNavigationBarHeight,
-      //   child: _buildBottomNavigationBar(),
-      // ),
+      bottomNavigationBar: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        height: _isMapMode ? 0 : kBottomNavigationBarHeight,
+        child: _buildBottomNavigationBar(),
+      ),
     );
   }
 
@@ -296,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen>
                         color: isSelected ? Colors.black : Colors.grey[500],
                         fontSize: 10,
                         fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                   ],
@@ -313,17 +293,100 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AnimatedContainer(
-          duration: const Duration(microseconds: 200),
-          height: _showSearchBar
-              ? MediaQuery.of(context).size.height * 0.048 + 20
-              : 0,
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: _buildSearchBar(),
+        // ------------------------------
+        // Search Bar
+        // ------------------------------
+        Padding(
+          padding: const EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: 0,
+          ),
+          child: Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white10,
+              borderRadius: BorderRadius.circular(0),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(width: 16),
+                Icon(Icons.search, color: Colors.grey[500], size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText:
+                      'Search properties, locations, professionals...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                        height: 1.2,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+              ],
+            ),
           ),
         ),
-        _buildCategoryTabs(),
+
+        const SizedBox(height: 16),
+        Container(
+          color: Colors.white,
+          height: 80,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              final category = categories[index];
+              final isSelected = _selectedCategory == index;
+
+              // Each category has two cache states: selected & unselected
+              final cacheKey = index * 10 + (isSelected ? 1 : 0);
+
+              // Return cached widget if exists
+              if (_categoryCache.containsKey(cacheKey)) {
+                return _categoryCache[cacheKey]!;
+              }
+
+              // Build the widget if not cached
+              final widget = Padding(
+                padding: EdgeInsets.only(
+                  left: index == 0 ? 20 : 12,
+                  right: index == categories.length - 1 ? 20 : 12,
+                ),
+                child: GestureDetector(
+                  onTap: () {
+                    // Only rebuild when actual change happens
+                    if (_selectedCategory != index) {
+                      setState(() {
+                        _selectedCategory = index;
+                        // Clear only selected/unselected versions
+                        _categoryCache.remove(index * 10);
+                        _categoryCache.remove(index * 10 + 1);
+                      });
+                    }
+                  },
+                  child: _buildCategoryTab(category, isSelected, index),
+                ),
+              );
+
+              // Store it in cache
+              _categoryCache[cacheKey] = widget;
+              return widget;
+            },
+          ),
+        ),
       ],
     );
   }
@@ -348,11 +411,11 @@ class _HomeScreenState extends State<HomeScreen>
           decoration: BoxDecoration(
             border: isSelected
                 ? const Border(
-                    bottom: BorderSide(
-                      color: Colors.black,
-                      width: 3.0,
-                    ),
-                  )
+              bottom: BorderSide(
+                color: Colors.black,
+                width: 3.0,
+              ),
+            )
                 : null,
           ),
           child: Text(
@@ -369,100 +432,6 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCategoryTabs() {
-    return Container(
-      color: Colors.white,
-      height: _isMapMode ? 0 : MediaQuery.of(context).size.height * 0.088,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = _selectedCategory == index;
-
-          // Each category has two cache states: selected & unselected
-          final cacheKey = index * 10 + (isSelected ? 1 : 0);
-
-          // Return cached widget if exists
-          if (_categoryCache.containsKey(cacheKey)) {
-            return _categoryCache[cacheKey]!;
-          }
-
-          // Build the widget if not cached
-          final widget = Padding(
-            padding: EdgeInsets.only(
-              left: index == 0 ? 20 : 12,
-              right: index == categories.length - 1 ? 20 : 12,
-            ),
-            child: GestureDetector(
-              onTap: () {
-                // Only rebuild when actual change happens
-                if (_selectedCategory != index) {
-                  setState(() {
-                    _selectedCategory = index;
-                    // Clear only selected/unselected versions
-                    _categoryCache.remove(index * 10);
-                    _categoryCache.remove(index * 10 + 1);
-                  });
-                }
-              },
-              child: _buildCategoryTab(category, isSelected, index),
-            ),
-          );
-
-          // Store it in cache
-          _categoryCache[cacheKey] = widget;
-          return widget;
-        },
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: 0,
-      ),
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white10,
-          borderRadius: BorderRadius.circular(0),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(width: 16),
-            Icon(Icons.search, color: Colors.grey[500], size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Search properties, locations, professionals...',
-                  hintStyle: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 12,
-                    height: 1.2,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  isDense: true,
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ),
-      ),
     );
   }
 
@@ -517,9 +486,9 @@ class _HomeScreenState extends State<HomeScreen>
                         color: Colors.grey[700],
                         image: pro.imageUrl.startsWith('http')
                             ? DecorationImage(
-                                image: CachedNetworkImageProvider(pro.imageUrl),
-                                fit: BoxFit.cover,
-                              )
+                          image: CachedNetworkImageProvider(pro.imageUrl),
+                          fit: BoxFit.cover,
+                        )
                             : null,
                       ),
                       child: pro.imageUrl.startsWith('http')
@@ -538,7 +507,7 @@ class _HomeScreenState extends State<HomeScreen>
                       maxLines: 2,
                     ),
                     Text(
-                      pro.specialty.displayName.toString(),
+                      pro.specialty.toString(),
                       style: TextStyle(
                         fontSize: 10,
                         color: Colors.grey[500],
@@ -589,15 +558,15 @@ class _HomeScreenState extends State<HomeScreen>
     return StreamBuilder<QuerySnapshot>(
       stream: selectedCategory == 'All'
           ? _firestore
-              .collection('posts')
-              .orderBy('createdAt', descending: true)
-              .snapshots()
+          .collection('posts')
+          .orderBy('createdAt', descending: true)
+          .snapshots()
           : _firestore
-              .collection('posts')
-              .where('category', isEqualTo: selectedCategory)
-              // Remove orderBy temporarily while index is building
-              // .orderBy('createdAt', descending: true)
-              .snapshots(),
+          .collection('posts')
+          .where('category', isEqualTo: selectedCategory)
+      // Remove orderBy temporarily while index is building
+      // .orderBy('createdAt', descending: true)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           // Check if it's an index error
@@ -659,7 +628,7 @@ class _HomeScreenState extends State<HomeScreen>
 
         return SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, index) {
+                (context, index) {
               final property = properties[index].data() as Map<String, dynamic>;
               return PropertyCard(
                 property: property,

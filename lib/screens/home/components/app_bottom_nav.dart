@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:house_rent_app/screens/main_screen.dart';
+import 'package:house_rent_app/screens/main.dart';
 
 class AppBottomNav extends StatelessWidget {
   const AppBottomNav({
