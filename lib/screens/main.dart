@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent_app/screens/explore/explore_screen.dart';
-import 'package:house_rent_app/screens/home/components/app_bottom_nav.dart';
+import 'package:house_rent_app/screens/components/app_bottom_nav.dart';
 import 'package:house_rent_app/screens/home/home_screen.dart';
 import 'package:house_rent_app/screens/profile/profile_screen.dart';
 import 'package:house_rent_app/screens/saved/saved_screen.dart';

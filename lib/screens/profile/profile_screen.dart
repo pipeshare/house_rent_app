@@ -9,11 +9,12 @@ import 'package:house_rent_app/models/user.dart' as kUser;
 import 'package:house_rent_app/core/constants.dart';
 import 'package:house_rent_app/screens/listing/listing_screen.dart';
 import 'package:house_rent_app/screens/post/post_screen.dart';
-import 'package:house_rent_app/screens/profile/setting_tile.dart';
-import 'package:house_rent_app/screens/profile/stat_chip.dart';
-import 'package:house_rent_app/screens/profile/status_dot.dart';
+import 'package:house_rent_app/screens/profile/components/setting_tile.dart';
+import 'package:house_rent_app/screens/profile/components/status_dot.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase/supabase.dart';
+
+import 'components/stat_chip.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

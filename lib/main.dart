@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:house_rent_app/core/routes/route_generator.dart';
 import 'package:house_rent_app/core/services/navigation_service.dart';
-import 'package:house_rent_app/screens/auth/auth_wrapper.dart';
-import 'package:house_rent_app/services/database_seeder.dart';
+import 'package:house_rent_app/services/auth_gate.dart';
 import 'package:house_rent_app/services/firebase_manual.dart';
 
 void main() async {
@@ -42,7 +41,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const AuthWrapper(), // Use AuthWrapper as home
+      home: const AuthGate(),
       navigatorKey: _navigationService.navigatorKey,
       onGenerateRoute: RouteGenerator.generateRoute,
       debugShowCheckedModeBanner: false,
