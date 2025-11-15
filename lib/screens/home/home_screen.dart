@@ -2,12 +2,15 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:house_rent_app/core/helpers.dart';
 import 'package:house_rent_app/core/routes/route_generator.dart';
 import 'package:house_rent_app/core/routes/routes.dart';
 import 'package:house_rent_app/models/DataModels.dart';
 import 'package:house_rent_app/models/Professional.dart';
 import 'package:house_rent_app/screens/home/property_card.dart';
+import 'package:latlong2/latlong.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,9 +24,12 @@ class _HomeScreenState extends State<HomeScreen>
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   int _selectedCategory = 0;
 
+  final MapController _mapController = MapController();
+
   bool _isMapMode = false;
   bool _showSearchBar = true;
   Stream<QuerySnapshot>? _currentPropertiesStream;
+
 
   void _updatePropertiesStream() {
     String selectedCategory = categories[_selectedCategory].name;
@@ -55,6 +61,8 @@ class _HomeScreenState extends State<HomeScreen>
     NavigationItem('Notifications', Icons.notifications_outlined),
     NavigationItem('Profile', Icons.person_outlined),
   ];
+
+  Map<String, dynamic>? _selectedProperty;
 
   @override
   void initState() {
@@ -214,11 +222,7 @@ class _HomeScreenState extends State<HomeScreen>
                   Positioned.fill(
                     child: Container(
                       color: Colors.grey[50],
-                      child: Image.network(
-                        'https://tile.openstreetmap.org/5/17/16.png',
-                        fit: BoxFit.cover,
-                        opacity: const AlwaysStoppedAnimation(0.3),
-                      ),
+                      child: _buildMap(),
                     ),
                   ),
                   DraggableScrollableSheet(
@@ -304,6 +308,242 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMap() {
+    final List<Map<String, dynamic>> sampleProperties = [
+      {
+        'id': '1',
+        'title': 'Luxury Apartment in Kabulonga',
+        'location': 'Kabulonga, Lusaka',
+        'price': 8500,
+        'category': 'apartment',
+        'latitude': -15.3950,
+        'longitude': 28.3222,
+        'photos': [
+          'https://images.unsplash.com/photo-1507089947368-19c1da9775ae?w=800',
+        ],
+      },
+      {
+        'id': '2',
+        'title': '3 Bedroom Modern House',
+        'location': 'Ibex Hill, Lusaka',
+        'price': 12000,
+        'category': 'house',
+        'latitude': -15.3892,
+        'longitude': 28.3300,
+        'photos': [
+          'https://images.unsplash.com/photo-1560185127-6ed189bf02f4?w=800',
+        ],
+      },
+      {
+        'id': '3',
+        'title': 'Affordable Bedsitter',
+        'location': 'Avondale, Lusaka',
+        'price': 2500,
+        'category': 'bedsitter',
+        'latitude': -15.3868,
+        'longitude': 28.3255,
+        'photos': [
+          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800',
+        ],
+      },
+    ];
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: Stream.value(sampleProperties),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final properties = snapshot.data!;
+
+        // Build markers list
+        List<Marker> markers = properties.map((data) {
+          return Marker(
+            point: LatLng(data['latitude'], data['longitude']),
+            width: 60,
+            height: 60,
+            alignment: Alignment.center,
+            child: GestureDetector(
+              onTap: () {
+                print(data);
+                setState(() {
+                  _selectedProperty = data;
+                });
+              },
+              child: _buildPropertyMarker(data['category']),
+            ),
+          );
+        }).toList();
+
+        return Stack(
+          children: [
+            FlutterMap(
+              mapController: _mapController,
+              options: const MapOptions(
+                initialCenter: LatLng(-15.3875, 28.3228), // Lusaka example
+                initialZoom: 13,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  maxZoom: 19,
+                ),
+                MarkerLayer(markers: markers),
+                const CurrentLocationLayer(
+                  style: LocationMarkerStyle(
+                    marker: DefaultLocationMarker(
+                      child: Icon(Icons.location_pin, color: Colors.white),
+                    ),
+                    markerSize: Size(35, 35),
+                    markerDirection: MarkerDirection.heading,
+                  ),
+                ),
+              ],
+            ),
+
+            // MINI PREVIEW CARD (Airbnb Style) - Only show if property is selected
+            if (_selectedProperty != null)
+              Positioned(
+                bottom: 20,
+                left: 20,
+                right: 20,
+                child: _buildMiniPropertyCard(_selectedProperty!),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPropertyMarker(String category) {
+    IconData icon;
+
+    switch (category.toLowerCase()) {
+      case "house":
+        icon = Icons.home;
+        break;
+      case "land":
+        icon = Icons.terrain;
+        break;
+      case "apartment":
+        icon = Icons.apartment;
+        break;
+      case "farm":
+        icon = Icons.agriculture;
+        break;
+      default:
+        icon = Icons.house;
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(.3),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(6),
+      child: Icon(icon, color: Colors.white, size: 28),
+    );
+  }
+
+  Widget _buildMiniPropertyCard(Map<String, dynamic> property) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          RouteNames.propertyDetails,
+          arguments: property,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(.15),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Preview Photo
+            ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: Image.network(
+                property['photos'][0],
+                height: 70,
+                width: 80,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 70,
+                    width: 80,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.home, color: Colors.grey),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Text Information
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    property['title'] ?? 'No Title',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    property['location'] ?? 'No Location',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "ZMW ${property['price'] ?? 'N/A'}",
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Close button to dismiss the card
+            IconButton(
+              onPressed: () {
+                setState(() {
+                  _selectedProperty = null;
+                });
+              },
+              icon: const Icon(Icons.close, size: 20),
             ),
           ],
         ),
@@ -657,7 +897,10 @@ class _HomeScreenState extends State<HomeScreen>
               return PropertyCard(
                 property: property,
                 onTap: () {
-                  Navigator.of(context).pushNamed(RouteNames.propertyDetails);
+                  Navigator.of(context).pushNamed(
+                    RouteNames.propertyDetails,
+                    arguments: property,
+                  );
                 },
               );
             },

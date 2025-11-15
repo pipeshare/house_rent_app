@@ -23,7 +23,10 @@ class RouteGenerator {
         return MaterialPageRoute(builder: (_) => const AdvancedMainScreen());
 
       case RouteNames.propertyDetails:
-        return MaterialPageRoute(builder: (_)=> const PropertyDetailsScreen());
+        final property = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => PropertyDetailsScreen(property: property),
+        );
 
       // case RouteNames.editProfile:
       //   if (args is EditProfileArguments) {
