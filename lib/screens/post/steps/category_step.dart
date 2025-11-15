@@ -1,10 +1,10 @@
 
 // Extracted Category Step
 import 'package:flutter/material.dart';
+import 'package:house_rent_app/screens/post/components/category_option.dart';
 import 'package:house_rent_app/screens/post/components/post_option.dart';
 import 'package:house_rent_app/screens/post/components/step_title.dart';
 
-import 'category_option.dart';
 
 class CategoryStep extends StatelessWidget {
   final List<PostOption> options;

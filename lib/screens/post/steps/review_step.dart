@@ -1,9 +1,8 @@
 // Extracted Review Step
 import 'package:flutter/material.dart';
+import 'package:house_rent_app/screens/post/components/hint.dart';
 import 'package:house_rent_app/screens/post/components/review_item.dart';
 import 'package:house_rent_app/screens/post/components/step_title.dart';
-
-import 'hint.dart';
 
 class ReviewStep extends StatelessWidget {
   final String category;

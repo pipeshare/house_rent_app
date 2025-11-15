@@ -1,9 +1,9 @@
 
 // Extracted Location & Price Step
 import 'package:flutter/material.dart';
-import 'package:house_rent_app/screens/post/components/form_step.dart';
+import 'package:house_rent_app/screens/post/components/hint.dart';
+import 'package:house_rent_app/screens/post/steps/form_step.dart';
 
-import 'hint.dart';
 
 class LocationPriceStep extends StatelessWidget {
   final TextEditingController locationCtrl;

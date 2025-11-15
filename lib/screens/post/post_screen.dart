@@ -1,22 +1,18 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:house_rent_app/screens/post/components/review_item.dart';
-import 'package:house_rent_app/screens/post/components/step_title.dart';
-
-import 'components/category_step.dart';
-import 'components/details_step.dart';
-import 'components/form_step.dart';
-import 'components/hint.dart';
-import 'components/location_step.dart';
-import 'components/photos_step.dart';
+import 'package:house_rent_app/screens/post/steps/category_step.dart';
+import 'package:house_rent_app/screens/post/steps/details_step.dart';
+import 'package:house_rent_app/screens/post/steps/location_step.dart';
+import 'package:house_rent_app/screens/post/steps/photos_step.dart';
+import 'package:house_rent_app/screens/post/steps/review_step.dart';
+import 'package:house_rent_app/services/post_service.dart';
+import 'package:image_picker/image_picker.dart';
 import 'components/post_FAB.dart';
 import 'components/post_header.dart';
 import 'components/post_option.dart';
-import 'components/review_step.dart';
-import 'components/step_dots.dart';
+
 
 class PostScreen extends StatefulWidget {
   const PostScreen({super.key});
@@ -28,6 +24,7 @@ class PostScreen extends StatefulWidget {
 class _PostScreenState extends State<PostScreen> {
   final _pageController = PageController();
   int _current = 0;
+  final ImagePicker _picker = ImagePicker();
 
   // Cache for post options to prevent recreation
   static const List<PostOption> _options = [
@@ -49,6 +46,7 @@ class _PostScreenState extends State<PostScreen> {
   final locationCtrl = TextEditingController();
   final priceCtrl = TextEditingController();
   final List<String> _photos = [];
+  final PostService _postService = PostService();
 
   // Loading state
   bool _isPosting = false;
@@ -63,7 +61,7 @@ class _PostScreenState extends State<PostScreen> {
     super.dispose();
   }
 
-  void _next(BuildContext context) {
+  Future<void> _next(BuildContext context) async {
     if (_isPosting) return;
 
     // Step validation
@@ -72,7 +70,17 @@ class _PostScreenState extends State<PostScreen> {
     if (_current < 4) {
       _navigateToNext();
     } else {
-      _postToFirestore(context);
+      await PostService().postProperty(
+        context: context,
+        category: _options[selectedIndex!].label,
+        title: titleCtrl.text,
+        description: descCtrl.text,
+        location: locationCtrl.text,
+        price: priceCtrl.text,
+        photos: _photos,
+        // List<String> of local file paths
+        userId: FirebaseAuth.instance.currentUser!.uid,
+      );
     }
   }
 
@@ -120,36 +128,12 @@ class _PostScreenState extends State<PostScreen> {
     );
   }
 
-  Future<void> _postToFirestore(BuildContext context) async {
-    if (_isPosting) return;
+  Future<void> _addPhoto() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
 
-    setState(() => _isPosting = true);
-
-    try {
-      await FirebaseFirestore.instance.collection('properties').add({
-        'category': _options[selectedIndex!].label,
-        'title': titleCtrl.text.trim(),
-        'description': descCtrl.text.trim(),
-        'location': locationCtrl.text.trim(),
-        'price': double.tryParse(priceCtrl.text.trim()) ?? 0.0,
-        'photos': _photos,
-        'createdAt': FieldValue.serverTimestamp(),
-        'userId': 'current_user_id', // Replace with actual user ID
-      });
-
-      _showToast('Property posted successfully!');
-
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      _showToast('Error posting: $e');
-      setState(() => _isPosting = false);
+    if (image != null) {
+      setState(() => _photos.add(image.path));
     }
-  }
-
-  void _addPhoto() {
-    setState(() => _photos.add('photo_${_photos.length + 1}.jpg'));
   }
 
   void _removePhoto(int index) {
@@ -215,7 +199,9 @@ class _PostScreenState extends State<PostScreen> {
                     onRemove: _removePhoto,
                   ),
                   ReviewStep(
-                    category: selectedIndex == null ? '' : _options[selectedIndex!].label,
+                    category: selectedIndex == null
+                        ? ''
+                        : _options[selectedIndex!].label,
                     title: titleCtrl.text,
                     description: descCtrl.text,
                     location: locationCtrl.text,
@@ -232,7 +218,3 @@ class _PostScreenState extends State<PostScreen> {
     );
   }
 }
-
-
-
-

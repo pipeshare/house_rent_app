@@ -3,6 +3,8 @@ import 'dart:developer';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:house_rent_app/core/routes/route_generator.dart';
+import 'package:house_rent_app/core/routes/routes.dart';
 import 'package:house_rent_app/services/firestore_service.dart';
 import 'register_screen.dart';
 
@@ -170,6 +172,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Success - navigate to home
       if (mounted) {
+        Navigator.of(context).pushReplacement(
+          RouteGenerator.generateRoute(
+            const RouteSettings(name: RouteNames.index),
+          ),
+        );
         log('🚀 Navigating to home screen...');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -513,7 +520,7 @@ class _SignInButton extends StatelessWidget {
         ),
       )
           : const Text(
-        'Sign In',
+        'Login',
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     );

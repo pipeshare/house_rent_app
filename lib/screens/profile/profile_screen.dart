@@ -4,7 +4,9 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
-import 'package:flutter/material.dart';
+
+import 'package:flutter/material.dart';import 'package:house_rent_app/core/routes/route_generator.dart';
+import 'package:house_rent_app/core/routes/routes.dart';
 import 'package:house_rent_app/models/user.dart' as kUser;
 import 'package:house_rent_app/core/constants.dart';
 import 'package:house_rent_app/screens/listing/listing_screen.dart';
@@ -241,6 +243,11 @@ class _ProfileScreenState extends State<ProfileScreen>
               try {
                 await fb_auth.FirebaseAuth.instance.signOut();
                 if (mounted) {
+                  Navigator.of(context).pushReplacement(
+                    RouteGenerator.generateRoute(
+                      const RouteSettings(name: RouteNames.login),
+                    ),
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Signed out successfully')),
                   );

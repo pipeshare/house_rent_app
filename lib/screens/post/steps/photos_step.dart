@@ -1,10 +1,9 @@
 // Extracted Photos Step
 import 'package:flutter/material.dart';
+import 'package:house_rent_app/screens/post/components/add_photo_button.dart';
+import 'package:house_rent_app/screens/post/components/hint.dart';
 import 'package:house_rent_app/screens/post/components/photo_thumbnail.dart';
 import 'package:house_rent_app/screens/post/components/step_title.dart';
-
-import 'add_photo_button.dart';
-import 'hint.dart';
 
 class PhotosStep extends StatelessWidget {
   final List<String> photos;
