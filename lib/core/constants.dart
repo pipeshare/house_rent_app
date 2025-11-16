@@ -50,4 +50,4 @@ const kAccentGradient = LinearGradient(
 const String kSupabaseUrl = 'https://fejvhkscfibsrcixorwd.supabase.co';
 const String kSupabaseAnonKey =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlanZoa3NjZmlic3JjaXhvcndkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MDc5MTAsImV4cCI6MjA3NjQ4MzkxMH0.vbVe-hOuk_5GsB-1bzPBvFMhkVI8fvIgwlbiL-3a4Do';
-const String kSupabaseAvatarBucket = 'host_app';
+const String kSupabaseAvatarBucket = 'users';

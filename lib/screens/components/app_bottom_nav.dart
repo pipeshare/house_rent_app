@@ -21,7 +21,7 @@ class AppBottomNav extends StatelessWidget {
       color: Colors.white,
       elevation: 8,
       child: SizedBox(
-        height: 70,
+        height: 60,
         child: Column(
           children: [
             const SizedBox(height: 10),

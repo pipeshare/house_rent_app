@@ -85,6 +85,8 @@ class _PostScreenState extends State<PostScreen> {
         price: priceCtrl.text,
         photos: _photos,
         // List<String> of local file paths
+        latitude: _selectedLocation?.latitude, // Add coordinates
+        longitude: _selectedLocation?.longitude, // Add coordinates
         userId: FirebaseAuth.instance.currentUser!.uid,
       );
     }
@@ -105,8 +107,14 @@ class _PostScreenState extends State<PostScreen> {
         }
         return true;
       case 2:
-        if (locationCtrl.text.trim().isEmpty || priceCtrl.text.trim().isEmpty) {
-          _showToast('Please add location & price');
+        if (_locationNameCtrl.text.trim().isEmpty) {
+          _showToast('Please add location');
+          return false;
+        }
+        return true;
+      case 3:
+        if (priceCtrl.text.trim().isEmpty) {
+          _showToast('Please add price');
           return false;
         }
         return true;
