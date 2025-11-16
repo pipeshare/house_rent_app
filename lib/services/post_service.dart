@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:house_rent_app/core/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PostService {
@@ -10,7 +11,6 @@ class PostService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final SupabaseClient _supabase = Supabase.instance.client;
-
 
   Future<void> postProperty({
     required BuildContext context,
@@ -45,7 +45,6 @@ class PostService {
     }
   }
 
-
   Future<List<String>> _uploadPhotosToSupabase(List<String> photos) async {
     if (photos.isEmpty) return [];
 
@@ -61,15 +60,15 @@ class PostService {
       }
 
       final ext = _getFileExtension(filePath);
-      final fileName = 'property_${DateTime.now().millisecondsSinceEpoch}_$i.$ext';
-      final storagePath = 'properties/$fileName';
+      final fileName = 'post_${DateTime.now().millisecondsSinceEpoch}_$i.$ext';
+      final storagePath = 'posts/$fileName';
 
       await _supabase.storage
-          .from('property-photos')
+          .from(kSupabaseAvatarBucket)
           .upload(storagePath, file);
 
       final publicUrl = _supabase.storage
-          .from('property-photos')
+          .from(kSupabaseAvatarBucket)
           .getPublicUrl(storagePath);
 
       uploadedUrls.add(publicUrl);
@@ -82,7 +81,6 @@ class PostService {
     final parts = filePath.split('.');
     return parts.length > 1 ? parts.last : 'jpg';
   }
-
 
   Future<void> _savePropertyToFirestore({
     required String category,
