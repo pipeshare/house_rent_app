@@ -30,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen>
   bool _showSearchBar = true;
   Stream<QuerySnapshot>? _currentPropertiesStream;
 
-
   void _updatePropertiesStream() {
     String selectedCategory = categories[_selectedCategory].name;
 
@@ -316,289 +315,132 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildMap() {
-    final List<Map<String, dynamic>> sampleProperties = [
-      {
-        'id': '1',
-        'title': 'Modern 2-Bed Apartment',
-        'location': 'Kabulonga, Lusaka',
-        'price': 7500,
-        'category': 'apartment',
-        'latitude': -15.3951,
-        'longitude': 28.3230,
-        'photos': [
-          'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=800',
-        ],
-      },
-      {
-        'id': '2',
-        'title': 'Luxury 4 Bedroom House',
-        'location': 'Ibex Hill, Lusaka',
-        'price': 15000,
-        'category': 'house',
-        'latitude': -15.3895,
-        'longitude': 28.3310,
-        'photos': [
-          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800',
-        ],
-      },
-      {
-        'id': '3',
-        'title': 'Affordable Bedsitter',
-        'location': 'Avondale, Lusaka',
-        'price': 2200,
-        'category': 'bedsitter',
-        'latitude': -15.3860,
-        'longitude': 28.3256,
-        'photos': [
-          'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800',
-        ],
-      },
-      {
-        'id': '4',
-        'title': 'Serviced Office Space',
-        'location': 'Rhodes Park, Lusaka',
-        'price': 9500,
-        'category': 'office',
-        'latitude': -15.4081,
-        'longitude': 28.3012,
-        'photos': [
-          'https://images.unsplash.com/photo-1557683316-973673baf926?w=800',
-        ],
-      },
-      {
-        'id': '5',
-        'title': 'Prime Commercial Plot',
-        'location': 'Chamba Valley, Lusaka',
-        'price': 350000,
-        'category': 'land',
-        'latitude': -15.3967,
-        'longitude': 28.3455,
-        'photos': [
-          'https://images.unsplash.com/photo-1500048993959-d11c3e42cc29?w=800',
-        ],
-      },
-      {
-        'id': '6',
-        'title': 'Farm Land for Sale (5 Acres)',
-        'location': 'Chongwe, Lusaka',
-        'price': 180000,
-        'category': 'farm',
-        'latitude': -15.4301,
-        'longitude': 28.4503,
-        'photos': [
-          'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=800',
-        ],
-      },
-      {
-        'id': '7',
-        'title': 'Townhouse Loft',
-        'location': 'Salama Park, Lusaka',
-        'price': 9000,
-        'category': 'house',
-        'latitude': -15.3877,
-        'longitude': 28.3397,
-        'photos': [
-          'https://images.unsplash.com/photo-1560448070-c4f254a3c99d?w=800',
-        ],
-      },
-      {
-        'id': '8',
-        'title': 'Studio Apartment',
-        'location': 'PHI, Lusaka',
-        'price': 3800,
-        'category': 'apartment',
-        'latitude': -15.3944,
-        'longitude': 28.3411,
-        'photos': [
-          'https://images.unsplash.com/photo-1527030280862-64139fba04ca?w=800',
-        ],
-      },
-      {
-        'id': '9',
-        'title': 'Executive Mansion',
-        'location': 'Mass Media, Lusaka',
-        'price': 25000,
-        'category': 'house',
-        'latitude': -15.4053,
-        'longitude': 28.3290,
-        'photos': [
-          'https://images.unsplash.com/photo-1615873968403-89e068278046?w=800',
-        ],
-      },
-      {
-        'id': '10',
-        'title': 'Industrial Warehouse',
-        'location': 'Light Industrial Area, Lusaka',
-        'price': 18000,
-        'category': 'warehouse',
-        'latitude': -15.4164,
-        'longitude': 28.2899,
-        'photos': [
-          'https://images.unsplash.com/photo-1583508915901-b5f84c1dcde1?w=800',
-        ],
-      },
-      {
-        'id': '11',
-        'title': 'Fully Furnished Apartment',
-        'location': 'Arcades, Lusaka',
-        'price': 7000,
-        'category': 'apartment',
-        'latitude': -15.4004,
-        'longitude': 28.3302,
-        'photos': [
-          'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=800',
-        ],
-      },
-      {
-        'id': '12',
-        'title': 'Retail Shop Space',
-        'location': 'Cairo Road, Lusaka',
-        'price': 12000,
-        'category': 'commercial',
-        'latitude': -15.4169,
-        'longitude': 28.2871,
-        'photos': [
-          'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800',
-        ],
-      },
-      {
-        'id': '13',
-        'title': 'Modern Student Room',
-        'location': 'UNZA Area, Lusaka',
-        'price': 2000,
-        'category': 'room',
-        'latitude': -15.3920,
-        'longitude': 28.3308,
-        'photos': [
-          'https://images.unsplash.com/photo-1505691723518-36a5ac3be353?w=800',
-        ],
-      },
-      {
-        'id': '14',
-        'title': 'Stand-Alone House',
-        'location': 'Woodlands, Lusaka',
-        'price': 11000,
-        'category': 'house',
-        'latitude': -15.4180,
-        'longitude': 28.3074,
-        'photos': [
-          'https://images.unsplash.com/photo-1599427303058-f04cbcf4756f?w=800',
-        ],
-      },
-      {
-        'id': '15',
-        'title': 'Cheap Plot for Sale',
-        'location': 'Chilanga, Lusaka',
-        'price': 75000,
-        'category': 'land',
-        'latitude': -15.5030,
-        'longitude': 28.2418,
-        'photos': [
-          'https://images.unsplash.com/photo-1528210383739-9e3c4e4e35fb?w=800',
-        ],
-      },
-      {
-        'id': '16',
-        'title': 'Agricultural Plot',
-        'location': 'Lusaka West',
-        'price': 95000,
-        'category': 'farm',
-        'latitude': -15.3924,
-        'longitude': 28.1801,
-        'photos': [
-          'https://images.unsplash.com/photo-1514996937319-344454492b37?w=800',
-        ],
-      },
-      {
-        'id': '17',
-        'title': 'Office Boardroom Space',
-        'location': 'Showgrounds, Lusaka',
-        'price': 6500,
-        'category': 'office',
-        'latitude': -15.4066,
-        'longitude': 28.3151,
-        'photos': [
-          'https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=800',
-        ],
-      },
-      {
-        'id': '18',
-        'title': 'High-End Penthouse',
-        'location': 'Longacres, Lusaka',
-        'price': 20000,
-        'category': 'apartment',
-        'latitude': -15.4274,
-        'longitude': 28.3144,
-        'photos': [
-          'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800',
-        ],
-      },
-      {
-        'id': '19',
-        'title': 'Small Bedsitter',
-        'location': 'Kalingalinga, Lusaka',
-        'price': 1800,
-        'category': 'bedsitter',
-        'latitude': -15.4240,
-        'longitude': 28.3199,
-        'photos': [
-          'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=800',
-        ],
-      },
-      {
-        'id': '20',
-        'title': 'Corporate Office Floor',
-        'location': 'Central Business District, Lusaka',
-        'price': 30000,
-        'category': 'office',
-        'latitude': -15.4165,
-        'longitude': 28.2895,
-        'photos': [
-          'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800',
-        ],
-      },
-    ];
-
-
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: Stream.value(sampleProperties),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('posts')
+          .where('latitude',
+              isNotEqualTo: null) // Only properties with coordinates
+          .where('longitude', isNotEqualTo: null)
+          .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final properties = snapshot.data!;
 
-        // Build markers list
-        List<Marker> markers = properties.map((data) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading properties',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  snapshot.error.toString(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.map_outlined, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No properties found',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Properties with locations will appear here',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final properties = snapshot.data!.docs;
+
+        // Build markers list from Firebase data
+        List<Marker> markers = properties.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+
+          // Safely parse coordinates with null checks
+          final lat = (data['latitude'] as num?)?.toDouble();
+          final lng = (data['longitude'] as num?)?.toDouble();
+
+          if (lat == null || lng == null) {
+            return Marker(
+              point: const LatLng(0, 0),
+              width: 0,
+              height: 0,
+              child: const SizedBox(),
+            );
+          }
+
           return Marker(
-            point: LatLng(data['latitude'], data['longitude']),
+            point: LatLng(lat, lng),
             width: 60,
-            height: 60,
+            height: 30,
             alignment: Alignment.center,
             child: GestureDetector(
               onTap: () {
-                print(data);
+                print('Property tapped: ${data['title']}');
                 setState(() {
-                  _selectedProperty = data;
+                  _selectedProperty = {
+                    'id': doc.id,
+                    ...data,
+                    'latitude': lat,
+                    'longitude': lng,
+                  };
                 });
               },
-              child: _buildPropertyMarker(data['category']),
+              child: _buildPropertyMarker(data['category'].toString(),
+                  data['price'].toString(), data['currency'] ?? 'ZWM'),
             ),
           );
         }).toList();
+
+        // Filter out invalid markers (those with 0,0 coordinates)
+        markers.removeWhere((marker) =>
+            marker.point.latitude == 0 && marker.point.longitude == 0);
 
         return Stack(
           children: [
             FlutterMap(
               mapController: _mapController,
-              options: const MapOptions(
-                initialCenter: LatLng(-15.3875, 28.3228), // Lusaka example
+              options: MapOptions(
+                initialCenter: _getInitialCenter(properties),
                 initialZoom: 13,
               ),
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   maxZoom: 19,
+                  userAgentPackageName: 'com.example.house_rent_app',
                 ),
                 MarkerLayer(markers: markers),
                 const CurrentLocationLayer(
@@ -612,11 +454,9 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ],
             ),
-
-            // MINI PREVIEW CARD (Airbnb Style) - Only show if property is selected
             if (_selectedProperty != null)
               Positioned(
-                bottom: 20,
+                bottom: 40,
                 left: 20,
                 right: 20,
                 child: _buildMiniPropertyCard(_selectedProperty!),
@@ -627,29 +467,53 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildPropertyMarker(String category) {
-    IconData icon;
+// Helper method to calculate initial map center based on properties
+  LatLng _getInitialCenter(List<QueryDocumentSnapshot> properties) {
+    if (properties.isEmpty) {
+      return const LatLng(-15.3875, 28.3228); // Default Lusaka center
+    }
 
-    switch (category.toLowerCase()) {
-      case "house":
-        icon = Icons.home;
+    // Calculate average center of all properties
+    double totalLat = 0;
+    double totalLng = 0;
+    int validProperties = 0;
+
+    for (final doc in properties) {
+      final data = doc.data() as Map<String, dynamic>;
+      final lat = (data['latitude'] as num?)?.toDouble();
+      final lng = (data['longitude'] as num?)?.toDouble();
+
+      if (lat != null && lng != null) {
+        totalLat += lat;
+        totalLng += lng;
+        validProperties++;
+      }
+    }
+
+    if (validProperties > 0) {
+      return LatLng(totalLat / validProperties, totalLng / validProperties);
+    }
+
+    return const LatLng(-15.3875, 28.3228); // Fallback to Lusaka center
+  }
+
+  Widget _buildPropertyMarker(String category, String price, String currecy) {
+    String symbol;
+
+    switch (currecy.toLowerCase()) {
+      case "USD":
+        symbol = '\$';
         break;
-      case "land":
-        icon = Icons.terrain;
-        break;
-      case "apartment":
-        icon = Icons.apartment;
-        break;
-      case "farm":
-        icon = Icons.agriculture;
+      case "ZWM":
+        symbol = 'K';
         break;
       default:
-        icon = Icons.house;
+        symbol = 'K';
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -658,8 +522,13 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
-      padding: const EdgeInsets.all(6),
-      child: Icon(icon, color: Colors.white, size: 28),
+      padding: const EdgeInsets.all(4),
+      child: Text(
+        "$symbol$price",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 

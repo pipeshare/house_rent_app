@@ -4,10 +4,13 @@ import 'package:house_rent_app/screens/post/components/step_title.dart';
 
 class FormStep extends StatelessWidget {
   final String title;
+  final String subtitle;
   final List<Widget> children;
 
   const FormStep({
+    super.key,
     required this.title,
+    required this.subtitle,
     required this.children,
   });
 

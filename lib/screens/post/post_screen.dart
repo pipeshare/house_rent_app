@@ -6,13 +6,14 @@ import 'package:house_rent_app/screens/post/steps/category_step.dart';
 import 'package:house_rent_app/screens/post/steps/details_step.dart';
 import 'package:house_rent_app/screens/post/steps/location_step.dart';
 import 'package:house_rent_app/screens/post/steps/photos_step.dart';
+import 'package:house_rent_app/screens/post/steps/price_step.dart';
 import 'package:house_rent_app/screens/post/steps/review_step.dart';
 import 'package:house_rent_app/services/post_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'components/post_FAB.dart';
 import 'components/post_header.dart';
 import 'components/post_option.dart';
-
 
 class PostScreen extends StatefulWidget {
   const PostScreen({super.key});
@@ -23,6 +24,11 @@ class PostScreen extends StatefulWidget {
 
 class _PostScreenState extends State<PostScreen> {
   final _pageController = PageController();
+
+  final TextEditingController _locationNameCtrl = TextEditingController();
+  final TextEditingController _priceCtrl = TextEditingController();
+  LatLng? _selectedLocation;
+
   int _current = 0;
   final ImagePicker _picker = ImagePicker();
 
@@ -79,6 +85,8 @@ class _PostScreenState extends State<PostScreen> {
         price: priceCtrl.text,
         photos: _photos,
         // List<String> of local file paths
+        latitude: _selectedLocation?.latitude, // Add coordinates
+        longitude: _selectedLocation?.longitude, // Add coordinates
         userId: FirebaseAuth.instance.currentUser!.uid,
       );
     }
@@ -99,8 +107,14 @@ class _PostScreenState extends State<PostScreen> {
         }
         return true;
       case 2:
-        if (locationCtrl.text.trim().isEmpty || priceCtrl.text.trim().isEmpty) {
-          _showToast('Please add location & price');
+        if (_locationNameCtrl.text.trim().isEmpty) {
+          _showToast('Please add location');
+          return false;
+        }
+        return true;
+      case 3:
+        if (priceCtrl.text.trim().isEmpty) {
+          _showToast('Please add price');
           return false;
         }
         return true;
@@ -149,6 +163,22 @@ class _PostScreenState extends State<PostScreen> {
     );
   }
 
+  void _onLocationSelected(LatLng coordinates, String locationName) {
+    setState(() {
+      _selectedLocation = coordinates;
+    });
+    print('Location saved: $locationName at $coordinates');
+
+    // You can save this to your property data:
+    final propertyData = {
+      'location': locationName,
+      'latitude': coordinates.latitude,
+      'longitude': coordinates.longitude,
+      'price': _priceCtrl.text,
+    };
+    print('Property data: $propertyData');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -189,8 +219,12 @@ class _PostScreenState extends State<PostScreen> {
                     titleCtrl: titleCtrl,
                     descCtrl: descCtrl,
                   ),
-                  LocationPriceStep(
-                    locationCtrl: locationCtrl,
+                  LocationStep(
+                    locationNameCtrl: _locationNameCtrl,
+                    selectedLocation: _selectedLocation,
+                    onLocationSelected: _onLocationSelected,
+                  ),
+                  PriceStep(
                     priceCtrl: priceCtrl,
                   ),
                   PhotosStep(

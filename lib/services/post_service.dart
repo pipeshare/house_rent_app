@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:house_rent_app/core/constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PostService {
@@ -11,7 +12,6 @@ class PostService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final SupabaseClient _supabase = Supabase.instance.client;
 
-
   Future<void> postProperty({
     required BuildContext context,
     required String category,
@@ -21,6 +21,8 @@ class PostService {
     required String price,
     required List<String> photos,
     required String userId,
+    required double? latitude, // Add these parameters
+    required double? longitude,
   }) async {
     try {
       // 1) Upload photos
@@ -35,6 +37,8 @@ class PostService {
         price: price,
         photoUrls: uploadedUrls,
         userId: userId,
+        latitude: latitude,
+        longitude: longitude,
       );
 
       _showToast(context, "Property posted successfully!");
@@ -44,7 +48,6 @@ class PostService {
       _showToast(context, "Error posting property: $e");
     }
   }
-
 
   Future<List<String>> _uploadPhotosToSupabase(List<String> photos) async {
     if (photos.isEmpty) return [];
@@ -61,15 +64,15 @@ class PostService {
       }
 
       final ext = _getFileExtension(filePath);
-      final fileName = 'property_${DateTime.now().millisecondsSinceEpoch}_$i.$ext';
-      final storagePath = 'properties/$fileName';
+      final fileName = 'post_${DateTime.now().millisecondsSinceEpoch}_$i.$ext';
+      final storagePath = 'posts/$fileName';
 
       await _supabase.storage
-          .from('property-photos')
+          .from(kSupabaseAvatarBucket)
           .upload(storagePath, file);
 
       final publicUrl = _supabase.storage
-          .from('property-photos')
+          .from(kSupabaseAvatarBucket)
           .getPublicUrl(storagePath);
 
       uploadedUrls.add(publicUrl);
@@ -83,7 +86,6 @@ class PostService {
     return parts.length > 1 ? parts.last : 'jpg';
   }
 
-
   Future<void> _savePropertyToFirestore({
     required String category,
     required String title,
@@ -92,8 +94,10 @@ class PostService {
     required String price,
     required List<String> photoUrls,
     required String userId,
+    required double? latitude,
+    required double? longitude,
   }) async {
-    await _firestore.collection('properties').add({
+    await _firestore.collection('posts').add({
       'category': category,
       'title': title.trim(),
       'description': description.trim(),
@@ -106,6 +110,8 @@ class PostService {
       'status': 'active',
       'views': 0,
       'likes': 0,
+      'latitude': latitude,
+      'longitude': longitude,
     });
   }
 

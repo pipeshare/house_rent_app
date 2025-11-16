@@ -7,7 +7,8 @@ class DetailsStep extends StatelessWidget {
   final TextEditingController titleCtrl;
   final TextEditingController descCtrl;
 
-  const DetailsStep({super.key,
+  const DetailsStep({
+    super.key,
     required this.titleCtrl,
     required this.descCtrl,
   });
@@ -16,6 +17,7 @@ class DetailsStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return FormStep(
       title: 'Basic details',
+      subtitle: 'Provide a title and description for your listing',
       children: [
         TextField(
           controller: titleCtrl,
