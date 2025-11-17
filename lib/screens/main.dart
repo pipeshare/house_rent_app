@@ -134,7 +134,6 @@ class AdvancedMainScreen extends StatefulWidget {
 
 class _AdvancedMainScreenState extends State<AdvancedMainScreen> {
   int _navIndex = 0;
-  late PageController _pageController;
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -150,45 +149,17 @@ class _AdvancedMainScreenState extends State<AdvancedMainScreen> {
     NavItem(Icons.person_outline_rounded, 'Profile'),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(initialPage: _navIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
   void _onNavTap(int index) {
     if (_navIndex == index) return;
-
     setState(() => _navIndex = index);
-
-    // Use animateToPage for smooth transition or jumpToPage for instant
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 1),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  void _onPageChanged(int index) {
-    if (_navIndex != index) {
-      setState(() => _navIndex = index);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(), // or PageScrollPhysics() for swipe
-        onPageChanged: _onPageChanged,
+      body: IndexedStack(
+        index: _navIndex,
         children: _screens,
       ),
       bottomNavigationBar: _MainBottomNav(

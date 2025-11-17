@@ -94,10 +94,6 @@ class _HomeScreenState extends State<HomeScreen>
     _loadProfessionals();
     _updatePropertiesStream();
 
-    _searchDebounce?.cancel();
-    _searchFocusNode.dispose();
-    _searchController.dispose();
-
     // Listen to sheet size changes
     _sheetController.addListener(() {
       final isMapMode = _sheetController.size < 0.5;
@@ -229,11 +225,15 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _sheetController.dispose();
+    _searchDebounce?.cancel();
+    _searchFocusNode.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
