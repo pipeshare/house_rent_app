@@ -7,7 +7,6 @@ import 'package:house_rent_app/core/routes/route_generator.dart';
 import 'package:house_rent_app/core/services/navigation_service.dart';
 import 'package:house_rent_app/services/auth_gate.dart';
 import 'package:house_rent_app/services/firebase_manual.dart';
-import 'package:house_rent_app/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
