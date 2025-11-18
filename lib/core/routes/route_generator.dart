@@ -12,20 +12,17 @@ class RouteGenerator {
     switch (settings.name) {
       case RouteNames.login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
-
       case RouteNames.register:
         return MaterialPageRoute(builder: (_) => const RegisterScreen());
-
       case RouteNames.forgotPassword:
         return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
-
       case RouteNames.index:
-        return MaterialPageRoute(builder: (_) => const AdvancedMainScreen());
+        return MaterialPageRoute(builder: (_) => const MainScreen());
 
       case RouteNames.propertyDetails:
-        final property = settings.arguments as Map<String, dynamic>;
+        final item = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
-          builder: (_) => PropertyDetailsScreen(property: property),
+          builder: (_) => PropertyDetailsScreen(item: item),
         );
 
       // case RouteNames.editProfile:

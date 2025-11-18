@@ -49,8 +49,25 @@ class _HomeScreenState extends State<HomeScreen>
       _searchController.clear();
       _searchQuery = '';
       _onlineSuggestions = [];
+      _searchFocusNode.requestFocus(); // Keep focus to show popular suggestions
     });
-    _searchFocusNode.requestFocus(); // Keep focus to show popular suggestions
+
+  }
+
+  void _handlePropertyTap(QueryDocumentSnapshot doc, Map<String, dynamic> data, double lat, double lng) {
+    final newProperty = {
+      'id': doc.id,
+      ...data,
+      'latitude': lat,
+      'longitude': lng,
+    };
+
+    // Only update if property changed
+    if (_selectedProperty?['id'] != newProperty['id']) {
+      setState(() {
+        _selectedProperty = newProperty;
+      });
+    }
   }
 
   void _updatePropertiesStream() {
@@ -105,11 +122,14 @@ class _HomeScreenState extends State<HomeScreen>
       }
     });
 
-    // Listen to focus changes to show/hide search tray
     _searchFocusNode.addListener(() {
-      setState(() {
-        _showSearchTray = _searchFocusNode.hasFocus;
-      });
+      final hasFocus = _searchFocusNode.hasFocus;
+      // Only update state if visibility actually changes
+      if (_showSearchDropdown != hasFocus) {
+        setState(() {
+          _showSearchDropdown = hasFocus;
+        });
+      }
     });
 
     // Listen to search controller for text changes
@@ -649,6 +669,7 @@ class _HomeScreenState extends State<HomeScreen>
       constraints: const BoxConstraints(maxHeight: 350),
       child: Column(
         children: [
+
           // Loading indicator
           if (_isLoadingSuggestions)
             const Padding(
@@ -702,10 +723,11 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _fetchOnlineSuggestions(String query) async {
     if (!mounted) return;
 
-    setState(() {
-      _isLoadingSuggestions = true;
-    });
+    // setState(() {
+    //   _isLoadingSuggestions = true;
+    // });
 
+    debugPrint(query);
     try {
       final client = HttpClient();
       final uri = Uri.parse('https://nominatim.openstreetmap.org/search?'
@@ -1034,167 +1056,143 @@ class _HomeScreenState extends State<HomeScreen>
           .where('longitude', isNotEqualTo: null)
           .snapshots(),
       builder: (context, snapshot) {
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('posts')
-              .where('latitude',
-                  isNotEqualTo: null) // Only properties with coordinates
-              .where(
-                'longitude',
-                isNotEqualTo: null,
-              )
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        // REMOVED: The duplicate nested StreamBuilder
 
-            if (snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 64, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error loading properties',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      snapshot.error.toString(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.map_outlined, size: 64, color: Colors.grey[400]),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No properties found',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Properties with locations will appear here',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final properties = snapshot.data!.docs;
-
-            // Build markers list from Firebase data
-            List<Marker> markers = properties.map((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-
-              // Safely parse coordinates with null checks
-              final lat = (data['latitude'] as num?)?.toDouble();
-              final lng = (data['longitude'] as num?)?.toDouble();
-
-              if (lat == null || lng == null) {
-                return const Marker(
-                  point: LatLng(0, 0),
-                  width: 0,
-                  height: 0,
-                  child: SizedBox(),
-                );
-              }
-
-              return Marker(
-                point: LatLng(lat, lng),
-                width: 60,
-                height: 30,
-                alignment: Alignment.center,
-                child: GestureDetector(
-                  onTap: () {
-                    print('Property tapped: ${data['title']}');
-                    setState(() {
-                      _selectedProperty = {
-                        'id': doc.id,
-                        ...data,
-                        'latitude': lat,
-                        'longitude': lng,
-                      };
-                    });
-                  },
-                  child: _buildPropertyMarker(data['category'].toString(),
-                      data['price'].toString(), data['currency'] ?? 'ZWM'),
-                ),
-              );
-            }).toList();
-
-            // Filter out invalid markers (those with 0,0 coordinates)
-            markers.removeWhere((marker) =>
-                marker.point.latitude == 0 && marker.point.longitude == 0);
-
-            return Stack(
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _getInitialCenter(properties),
-                    initialZoom: 13,
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading properties',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      maxZoom: 19,
-                      userAgentPackageName: 'com.example.house_rent_app',
-                    ),
-                    MarkerLayer(markers: markers),
-                    const CurrentLocationLayer(
-                      style: LocationMarkerStyle(
-                        marker: DefaultLocationMarker(
-                          child: Icon(Icons.location_pin, color: Colors.white),
-                        ),
-                        markerSize: Size(35, 35),
-                        markerDirection: MarkerDirection.heading,
-                      ),
-                    ),
-                  ],
                 ),
-                if (_selectedProperty != null)
-                  Positioned(
-                    bottom: 40,
-                    left: 20,
-                    right: 20,
-                    child: _buildMiniPropertyCard(_selectedProperty!),
+                const SizedBox(height: 8),
+                Text(
+                  snapshot.error.toString(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
                   ),
-                // Positioned(
-                //   top: 40,
-                //   left: 20,
-                //   right: 20,
-                //   // Create a search area
-                //   child: _buildMapSearchBar(),
-                // ),
+                  textAlign: TextAlign.center,
+                ),
               ],
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.map_outlined, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No properties found',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Properties with locations will appear here',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final properties = snapshot.data!.docs;
+
+        // Build markers list from Firebase data
+        List<Marker> markers = properties.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+
+          // Safely parse coordinates with null checks
+          final lat = (data['latitude'] as num?)?.toDouble();
+          final lng = (data['longitude'] as num?)?.toDouble();
+
+          if (lat == null || lng == null) {
+            return const Marker(
+              point: LatLng(0, 0),
+              width: 0,
+              height: 0,
+              child: SizedBox(),
             );
-          },
+          }
+
+          return Marker(
+            point: LatLng(lat, lng),
+            width: 60,
+            height: 30,
+            alignment: Alignment.center,
+            child: GestureDetector(
+              onTap: () {
+                debugPrint('Property tapped: ${data['title']}');
+                _handlePropertyTap(doc, data, lat, lng);
+              },
+              child: _buildPropertyMarker(
+                data['category'].toString(),
+                data['price'].toString(),
+                data['currency'] ?? 'ZMW',
+              ),
+            ),
+          );
+        }).toList();
+
+        // Filter out invalid markers (those with 0,0 coordinates)
+        markers.removeWhere((marker) =>
+        marker.point.latitude == 0 && marker.point.longitude == 0);
+
+        return Stack(
+          children: [
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _getInitialCenter(properties),
+                initialZoom: 13,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  maxZoom: 19,
+                  userAgentPackageName: 'com.example.house_rent_app',
+                ),
+                MarkerLayer(markers: markers),
+                const CurrentLocationLayer(
+                  style: LocationMarkerStyle(
+                    marker: DefaultLocationMarker(
+                      child: Icon(Icons.location_pin, color: Colors.white),
+                    ),
+                    markerSize: Size(35, 35),
+                    markerDirection: MarkerDirection.heading,
+                  ),
+                ),
+              ],
+            ),
+            if (_selectedProperty != null)
+              Positioned(
+                bottom: 40,
+                left: 20,
+                right: 20,
+                child: _buildMiniPropertyCard(_selectedProperty!),
+              ),
+          ],
         );
       },
     );

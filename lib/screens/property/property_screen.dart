@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class PropertyDetailsScreen extends StatefulWidget {
-  final Map<String, dynamic> property;
+  final Map<String, dynamic> item;
 
-  const PropertyDetailsScreen({super.key, required this.property});
+  const PropertyDetailsScreen({super.key, required this.item});
 
   @override
   State<PropertyDetailsScreen> createState() => _PropertyDetailsScreenState();
@@ -22,11 +22,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   void initState() {
     super.initState();
     // Cache property data to avoid repeated lookups
-    _photos = (widget.property['photos'] as List<dynamic>?)?.cast<String>() ?? [];
-    _title = widget.property['title']?.toString() ?? '';
-    _price = (widget.property['price'] as num?)?.toDouble() ?? 0.0;
-    _location = widget.property['location']?.toString() ?? '';
-    _description = widget.property['description']?.toString() ?? '';
+    _photos = (widget.item['photos'] as List<dynamic>?)?.cast<String>() ?? [];
+    _title = widget.item['title']?.toString() ?? '';
+    _price = (widget.item['price'] as num?)?.toDouble() ?? 0.0;
+    _location = widget.item['location']?.toString() ?? '';
+    _description = widget.item['description']?.toString() ?? '';
   }
 
   @override
@@ -68,7 +68,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           onVerticalDragEnd: (details) {
             if (details.primaryVelocity! > 300) Navigator.pop(context);
           },
-          heroTag: widget.property,
+          heroTag: widget.item,
         );
       },
     );

@@ -14,17 +14,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _navIndex = 0;
-  late PageController _pageController;
 
-  // Cache for nav items to prevent recreation
-  static const List<NavItem> _navItems = [
-    NavItem(Icons.home_rounded, 'Home'),
-    NavItem(Icons.explore_rounded, 'Explore'),
-    NavItem(Icons.bookmark_border_rounded, 'Saved'),
-    NavItem(Icons.person_outline_rounded, 'Profile'),
-  ];
-
-  // Screen cache to maintain state
   final List<Widget> _screens = const [
     HomeScreen(),
     ExploreScreen(),
@@ -32,45 +22,57 @@ class _MainScreenState extends State<MainScreen> {
     ProfileScreen(),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(initialPage: _navIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
   void _onNavTap(int index) {
     if (_navIndex == index) return;
-
     setState(() => _navIndex = index);
-    _pageController.jumpToPage(index);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: _MainScreenContent(
-        pageController: _pageController,
-        navIndex: _navIndex,
-        screens: _screens,
-        onPageChanged: (index) {
-          if (_navIndex != index) {
-            setState(() => _navIndex = index);
-          }
-        },
+      body: IndexedStack(
+        index: _navIndex,
+        children: _screens,
       ),
-      // bottomNavigationBar: _MainBottomNav(
-      //   navIndex: _navIndex,
-      //   onNavTap: _onNavTap,
-      // ),
+      bottomNavigationBar: _MainBottomNav(
+        navIndex: _navIndex,
+        onNavTap: _onNavTap,
+      ),
     );
   }
+}
+
+class _MainBottomNav extends StatelessWidget {
+  final int navIndex;
+  final ValueChanged<int> onNavTap;
+
+  static const List<NavItem> _navItems = [
+    NavItem(Icons.home_rounded, 'Home'),
+    NavItem(Icons.explore_rounded, 'Explore'),
+    NavItem(Icons.bookmark_border_rounded, 'Saved'),
+    NavItem(Icons.person_outline_rounded, 'Profile'),
+  ];
+
+  const _MainBottomNav({
+    required this.navIndex,
+    required this.onNavTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBottomNav(
+      items: _navItems,
+      currentIndex: navIndex,
+      onTap: onNavTap,
+    );
+  }
+}
+
+class NavItem {
+  final IconData icon;
+  final String label;
+  const NavItem(this.icon, this.label);
 }
 
 // Extracted main screen content for better performance
@@ -94,78 +96,6 @@ class _MainScreenContent extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       onPageChanged: onPageChanged,
       children: screens,
-    );
-  }
-}
-
-// Extracted bottom navigation for selective rebuilds
-class _MainBottomNav extends StatelessWidget {
-  final int navIndex;
-  final ValueChanged<int> onNavTap;
-
-  const _MainBottomNav({
-    required this.navIndex,
-    required this.onNavTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppBottomNav(
-      items: _MainScreenState._navItems,
-      currentIndex: navIndex,
-      onTap: onNavTap,
-    );
-  }
-}
-
-class NavItem {
-  final IconData icon;
-  final String label;
-  const NavItem(this.icon, this.label);
-}
-
-// Advanced version with page controller and state preservation
-class AdvancedMainScreen extends StatefulWidget {
-  const AdvancedMainScreen({super.key});
-
-  @override
-  State<AdvancedMainScreen> createState() => _AdvancedMainScreenState();
-}
-
-class _AdvancedMainScreenState extends State<AdvancedMainScreen> {
-  int _navIndex = 0;
-
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    ExploreScreen(),
-    SavedScreen(),
-    ProfileScreen(),
-  ];
-
-  static const List<NavItem> _navItems = [
-    NavItem(Icons.home_rounded, 'Home'),
-    NavItem(Icons.explore_rounded, 'Explore'),
-    NavItem(Icons.bookmark_border_rounded, 'Saved'),
-    NavItem(Icons.person_outline_rounded, 'Profile'),
-  ];
-
-  void _onNavTap(int index) {
-    if (_navIndex == index) return;
-    setState(() => _navIndex = index);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: IndexedStack(
-        index: _navIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: _MainBottomNav(
-        navIndex: _navIndex,
-        onNavTap: _onNavTap,
-      ),
     );
   }
 }
