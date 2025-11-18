@@ -124,53 +124,6 @@ class NavItem {
   const NavItem(this.icon, this.label);
 }
 
-// Optimized version with IndexedStack for better state preservation
-class OptimizedMainScreen extends StatefulWidget {
-  const OptimizedMainScreen({super.key});
-
-  @override
-  State<OptimizedMainScreen> createState() => _OptimizedMainScreenState();
-}
-
-class _OptimizedMainScreenState extends State<OptimizedMainScreen> {
-  int _navIndex = 0;
-
-  // Cache screens to maintain state
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    ExploreScreen(),
-    SavedScreen(),
-    ProfileScreen(),
-  ];
-
-  static const List<NavItem> _navItems = [
-    NavItem(Icons.home_rounded, 'Home'),
-    NavItem(Icons.explore_rounded, 'Explore'),
-    NavItem(Icons.bookmark_border_rounded, 'Saved'),
-    NavItem(Icons.person_outline_rounded, 'Profile'),
-  ];
-
-  void _onNavTap(int index) {
-    if (_navIndex == index) return;
-    setState(() => _navIndex = index);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: IndexedStack(
-        index: _navIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: _MainBottomNav(
-        navIndex: _navIndex,
-        onNavTap: _onNavTap,
-      ),
-    );
-  }
-}
-
 // Advanced version with page controller and state preservation
 class AdvancedMainScreen extends StatefulWidget {
   const AdvancedMainScreen({super.key});
@@ -181,7 +134,6 @@ class AdvancedMainScreen extends StatefulWidget {
 
 class _AdvancedMainScreenState extends State<AdvancedMainScreen> {
   int _navIndex = 0;
-  late PageController _pageController;
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -197,130 +149,6 @@ class _AdvancedMainScreenState extends State<AdvancedMainScreen> {
     NavItem(Icons.person_outline_rounded, 'Profile'),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(initialPage: _navIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _onNavTap(int index) {
-    if (_navIndex == index) return;
-
-    setState(() => _navIndex = index);
-
-    // Use animateToPage for smooth transition or jumpToPage for instant
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 1),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  void _onPageChanged(int index) {
-    if (_navIndex != index) {
-      setState(() => _navIndex = index);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(), // or PageScrollPhysics() for swipe
-        onPageChanged: _onPageChanged,
-        children: _screens,
-      ),
-      bottomNavigationBar: _MainBottomNav(
-        navIndex: _navIndex,
-        onNavTap: _onNavTap,
-      ),
-    );
-  }
-}
-
-// Minimal version for maximum performance
-class MinimalMainScreen extends StatefulWidget {
-  const MinimalMainScreen({super.key});
-
-  @override
-  State<MinimalMainScreen> createState() => _MinimalMainScreenState();
-}
-
-class _MinimalMainScreenState extends State<MinimalMainScreen> {
-  int _navIndex = 0;
-
-  static const _screens = [
-    HomeScreen(),
-    ExploreScreen(),
-    SavedScreen(),
-    ProfileScreen(),
-  ];
-
-  static const _navItems = [
-    NavItem(Icons.home_rounded, 'Home'),
-    NavItem(Icons.explore_rounded, 'Explore'),
-    NavItem(Icons.bookmark_border_rounded, 'Saved'),
-    NavItem(Icons.person_outline_rounded, 'Profile'),
-  ];
-
-  void _onNavTap(int index) {
-    if (_navIndex != index) {
-      setState(() => _navIndex = index);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_navIndex],
-      bottomNavigationBar: AppBottomNav(
-        items: _navItems,
-        currentIndex: _navIndex,
-        onTap: _onNavTap,
-      ),
-    );
-  }
-}
-
-// Version with keep alive support for all screens
-class PersistentMainScreen extends StatefulWidget {
-  const PersistentMainScreen({super.key});
-
-  @override
-  State<PersistentMainScreen> createState() => _PersistentMainScreenState();
-}
-
-class _PersistentMainScreenState extends State<PersistentMainScreen>
-    with AutomaticKeepAliveClientMixin {
-  int _navIndex = 0;
-
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    ExploreScreen(),
-    SavedScreen(),
-    ProfileScreen(),
-  ];
-
-  static const List<NavItem> _navItems = [
-    NavItem(Icons.home_rounded, 'Home'),
-    NavItem(Icons.explore_rounded, 'Explore'),
-    NavItem(Icons.bookmark_border_rounded, 'Saved'),
-    NavItem(Icons.person_outline_rounded, 'Profile'),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
   void _onNavTap(int index) {
     if (_navIndex == index) return;
     setState(() => _navIndex = index);
@@ -328,8 +156,6 @@ class _PersistentMainScreenState extends State<PersistentMainScreen>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
-
     return Scaffold(
       extendBody: true,
       body: IndexedStack(
@@ -341,28 +167,5 @@ class _PersistentMainScreenState extends State<PersistentMainScreen>
         onNavTap: _onNavTap,
       ),
     );
-  }
-
-  @override
-  bool get wantKeepAlive => true;
-}
-
-// Factory class to create the most appropriate MainScreen based on needs
-class MainScreenFactory {
-  static Widget create({
-    bool usePageView = false,
-    bool enableSwipe = false,
-    bool preserveState = true,
-    bool smoothTransitions = false,
-  }) {
-    if (preserveState && !usePageView) {
-      return const OptimizedMainScreen();
-    } else if (usePageView && smoothTransitions) {
-      return const AdvancedMainScreen();
-    } else if (usePageView) {
-      return const MainScreen();
-    } else {
-      return const MinimalMainScreen();
-    }
   }
 }
