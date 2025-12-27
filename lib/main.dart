@@ -23,7 +23,7 @@ void main() async {
     await Firebase.initializeApp(
       options: FirebaseManualConfig.androidOptions,
     );
-    log('✅ Firebase initialized success!');
+    log(time: DateTime.now(), '✅ Firebase initialized success!');
 
     // await DatabaseSeeder.seedInitialData();
 

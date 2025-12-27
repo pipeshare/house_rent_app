@@ -9,7 +9,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:house_rent_app/core/helpers.dart';
-import 'package:house_rent_app/core/routes/route_generator.dart';
 import 'package:house_rent_app/core/routes/routes.dart';
 import 'package:house_rent_app/models/DataModels.dart';
 import 'package:house_rent_app/models/Professional.dart';
@@ -27,72 +26,30 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with AutomaticKeepAliveClientMixin<HomeScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  int _selectedCategory = 0;
-
-  TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  final FocusNode _searchFocusNode = FocusNode();
   bool _showSearchDropdown = false;
-  bool _isLoadingSuggestions = false;
-  List<Map<String, dynamic>> _onlineSuggestions = [];
   Timer? _searchDebounce;
 
-  final MapController _mapController = MapController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  int _selectedCategory = 0;
+  final Map<int, Widget> _categoryCache = {};
 
   bool _isMapMode = false;
   bool _showSearchBar = true;
   Stream<QuerySnapshot>? _currentPropertiesStream;
 
-  void _clearSearch() {
-    setState(() {
-      _searchController.clear();
-      _searchQuery = '';
-      _onlineSuggestions = [];
-      _searchFocusNode.requestFocus(); // Keep focus to show popular suggestions
-    });
-
-  }
-
-  void _handlePropertyTap(QueryDocumentSnapshot doc, Map<String, dynamic> data, double lat, double lng) {
-    final newProperty = {
-      'id': doc.id,
-      ...data,
-      'latitude': lat,
-      'longitude': lng,
-    };
-
-    // Only update if property changed
-    if (_selectedProperty?['id'] != newProperty['id']) {
-      setState(() {
-        _selectedProperty = newProperty;
-      });
-    }
-  }
-
-  void _updatePropertiesStream() {
-    String selectedCategory = categories[_selectedCategory].name;
-
-    setState(() {
-      _currentPropertiesStream = selectedCategory == 'All'
-          ? _firestore
-              .collection('posts')
-              .orderBy('createdAt', descending: true)
-              .snapshots()
-          : _firestore
-              .collection('posts')
-              .where('category', isEqualTo: selectedCategory)
-              .snapshots();
-    });
-  }
-
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
-  final Map<int, Widget> _categoryCache = {};
+  final ValueNotifier<Map<String, dynamic>?> selectedPropertyNotifier =
+      ValueNotifier(null);
+  final ValueNotifier<String> searchQueryNotifier = ValueNotifier('');
 
   List<Category> categories = [Category('All', Icons.all_inclusive_rounded)];
   List<Professional> professionals = [];
+
+  final TextEditingController _searchController = TextEditingController();
+  final MapController _mapController = MapController();
+  final FocusNode _searchFocusNode = FocusNode();
 
   final List<NavigationItem> navItems = [
     NavigationItem('Home', Icons.home_outlined),
@@ -100,9 +57,6 @@ class _HomeScreenState extends State<HomeScreen>
     NavigationItem('Notifications', Icons.notifications_outlined),
     NavigationItem('Profile', Icons.person_outlined),
   ];
-
-  Map<String, dynamic>? _selectedProperty;
-  bool _showSearchTray = false;
 
   @override
   void initState() {
@@ -134,9 +88,24 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Listen to search controller for text changes
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text;
-      });
+      setState(() {});
+      searchQueryNotifier.value = _searchController.text;
+    });
+  }
+
+  void _updatePropertiesStream() {
+    String selectedCategory = categories[_selectedCategory].name;
+
+    setState(() {
+      _currentPropertiesStream = selectedCategory == 'All'
+          ? _firestore
+              .collection('posts')
+              .orderBy('createdAt', descending: true)
+              .snapshots()
+          : _firestore
+              .collection('posts')
+              .where('category', isEqualTo: selectedCategory)
+              .snapshots();
     });
   }
 
@@ -171,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen>
         professionals = loadedProfessionals;
       });
     } catch (e) {
-      print('Error loading professionals: $e');
+      debugPrint('Error loading professionals: $e');
     }
   }
 
@@ -248,6 +217,8 @@ class _HomeScreenState extends State<HomeScreen>
     _searchDebounce?.cancel();
     _searchFocusNode.dispose();
     _searchController.dispose();
+    selectedPropertyNotifier.dispose();
+    searchQueryNotifier.dispose();
     super.dispose();
   }
 
@@ -261,9 +232,7 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             // Animated Header
             AnimatedContainer(
-              // color: Colors.black,
               duration: const Duration(milliseconds: 300),
-              // height: _isMapMode ? 0 : 210,
               child: Opacity(
                 opacity: _isMapMode ? 0 : 1.0,
                 child: Container(
@@ -283,7 +252,11 @@ class _HomeScreenState extends State<HomeScreen>
                   Positioned.fill(
                     child: Container(
                       color: Colors.grey[50],
-                      child: _buildMap(),
+                      child: PropertyMap(
+                        mapController: _mapController,
+                        selectedPropertyNotifier: selectedPropertyNotifier,
+                        searchQueryNotifier: searchQueryNotifier,
+                      ),
                     ),
                   ),
                   DraggableScrollableSheet(
@@ -377,418 +350,6 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildMap() {
-    return Stack(
-      children: [
-        _buildMapContent(),
-        Positioned(
-          top: 40,
-          left: 20,
-          right: 20,
-          child: _buildMapSearchBar(),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _moveToCurrentLocation() async {
-    Location().getLocation().then((location) {
-      _mapController.move(
-          LatLng(location.latitude!, location.longitude!), 15.0);
-    });
-  }
-
-  String _getLocationType(dynamic item) {
-    final address = item['address'] ?? {};
-    final type = item['type'] ?? '';
-
-    if (address['city'] != null || address['town'] != null) return 'city';
-    if (address['suburb'] != null || address['neighbourhood'] != null)
-      return 'area';
-    if (address['village'] != null) return 'village';
-    if (type == 'administrative') return 'region';
-
-    return 'place';
-  }
-
-  Widget _buildMapSearchBar() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.search, color: Colors.grey, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  decoration: const InputDecoration(
-                    hintText: 'Search any location in Zambia...',
-                    hintStyle: TextStyle(fontSize: 15),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    isDense: true,
-                  ),
-                  onTap: () {
-                    setState(() {
-                      _showSearchDropdown = true;
-                    });
-                  },
-                  onSubmitted: (query) {
-                    if (_onlineSuggestions.isNotEmpty) {
-                      _navigateToSuggestion(_onlineSuggestions.first);
-                    } else {
-                      _searchArea(query);
-                    }
-                    _searchFocusNode.unfocus();
-                  },
-                ),
-              ),
-              if (_searchQuery.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: _clearSearch,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.my_location, size: 18),
-                onPressed: _moveToCurrentLocation,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-        ),
-
-        // Search Dropdown - appears when typing or focused
-        if (_showSearchDropdown) _buildSearchDropdown(),
-      ],
-    );
-  }
-
-
-
-
-
-
-  Widget _buildSearchDropdown() {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      constraints: const BoxConstraints(maxHeight: 350),
-      child: Column(
-        children: [
-
-          // Loading indicator
-          if (_isLoadingSuggestions)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-
-          // Search results or empty state
-          Expanded(
-            child: _buildDropdownContent(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigateToSuggestion(Map<String, dynamic> suggestion) {
-    final location = LatLng(
-      (suggestion['lat'] as num).toDouble(),
-      (suggestion['lng'] as num).toDouble(),
-    );
-
-    // Update search controller with selected suggestion
-    _searchController.text = suggestion['name'];
-
-    // Navigate to the location
-    _mapController.move(location, 14.0);
-
-    // Close the dropdown
-    _searchFocusNode.unfocus();
-
-    // Show confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Navigating to ${suggestion['name']}'),
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _searchArea(String query) {
-    if (query.isEmpty) return;
-    _fetchOnlineSuggestions(query);
-  }
-
-  Future<void> _fetchOnlineSuggestions(String query) async {
-    if (!mounted) return;
-
-    // setState(() {
-    //   _isLoadingSuggestions = true;
-    // });
-
-    debugPrint(query);
-    try {
-      final client = HttpClient();
-      final uri = Uri.parse('https://nominatim.openstreetmap.org/search?'
-          'q=$query&'
-          'format=json&'
-          'addressdetails=1&'
-          'limit=10&'
-          'countrycodes=zm' // Limit to Zambia
-          );
-
-      final request = await client.getUrl(uri);
-      request.headers
-          .add('User-Agent', 'HouseRentApp/1.0'); // Required by Nominatim
-
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(responseBody);
-
-        final suggestions = data.map((item) {
-          return {
-            'name': item['display_name'] ?? '',
-            'type': _getLocationType(item),
-            'lat': double.parse(item['lat']),
-            'lng': double.parse(item['lon']),
-            'address': item['address'] ?? {},
-          };
-        }).toList();
-
-        if (mounted) {
-          setState(() {
-            _onlineSuggestions = suggestions;
-            _isLoadingSuggestions = false;
-          });
-        }
-      } else {
-        throw Exception('Failed to fetch suggestions');
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingSuggestions = false;
-          _onlineSuggestions = [];
-        });
-      }
-      print('Error fetching suggestions: $e');
-    }
-  }
-
-  Widget _buildDropdownContent() {
-    if (_isLoadingSuggestions) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_searchQuery.isEmpty) {
-      // return _buildPopularSuggestions();
-      return Text('');
-    }
-
-    if (_onlineSuggestions.isEmpty && _searchQuery.length > 2) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text(
-          'No locations found',
-          style: TextStyle(color: Colors.grey),
-        ),
-      );
-    }
-
-    return _buildOnlineSuggestions();
-  }
-
-  Widget _buildOnlineSuggestions() {
-    return ListView.builder(
-      padding: EdgeInsets.zero,
-      shrinkWrap: true,
-      itemCount: _onlineSuggestions.length,
-      itemBuilder: (context, index) {
-        return _buildOnlineSuggestionItem(_onlineSuggestions[index]);
-      },
-    );
-  }
-
-  String _capitalize(String text) {
-    if (text.isEmpty) return text;
-    return text[0].toUpperCase() + text.substring(1);
-  }
-
-  String _getAddressSubtitle(Map<String, dynamic> address) {
-    final parts = [];
-
-    if (address['city'] != null) parts.add(address['city']);
-    if (address['town'] != null) parts.add(address['town']);
-    if (address['state'] != null) parts.add(address['state']);
-    if (address['country'] != null) parts.add(address['country']);
-
-    return parts.join(', ');
-  }
-
-  String _formatDisplayName(String displayName, Map<String, dynamic> address) {
-    // Extract the most relevant part of the name
-    final city = address['city'] ?? address['town'];
-    final suburb = address['suburb'] ?? address['neighbourhood'];
-    final road = address['road'];
-
-    if (suburb != null && city != null) {
-      return '$suburb, $city';
-    } else if (road != null && city != null) {
-      return '$road, $city';
-    }
-
-    // Fallback to first part of display name
-    return displayName.split(',').first;
-  }
-
-  Widget _buildOnlineSuggestionItem(Map<String, dynamic> suggestion) {
-    final address = suggestion['address'] as Map<String, dynamic>;
-    final displayName = _formatDisplayName(suggestion['name'], address);
-
-    return ListTile(
-      leading: Icon(
-        _getSuggestionIcon(suggestion['type']),
-        color: Colors.blue,
-        size: 20,
-      ),
-      title: Text(
-        displayName,
-        style: const TextStyle(fontSize: 14),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        _getAddressSubtitle(address),
-        style: const TextStyle(fontSize: 12),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      visualDensity: const VisualDensity(vertical: -2),
-      onTap: () {
-        _navigateToSuggestion(suggestion);
-      },
-    );
-  }
-
-  IconData _getSuggestionIcon(String type) {
-    switch (type) {
-      case 'city':
-        return Icons.location_city;
-      case 'area':
-      case 'suburb':
-        return Icons.place;
-      case 'village':
-        return Icons.house;
-      case 'region':
-        return Icons.map;
-      default:
-        return Icons.location_on;
-    }
-  }
-
-  // Helper method to calculate initial map center based on properties
-  LatLng _getInitialCenter(List<QueryDocumentSnapshot> properties) {
-    if (properties.isEmpty) {
-      return const LatLng(-15.3875, 28.3228); // Default Lusaka center
-    }
-
-    // Calculate average center of all properties
-    double totalLat = 0;
-    double totalLng = 0;
-    int validProperties = 0;
-
-    for (final doc in properties) {
-      final data = doc.data() as Map<String, dynamic>;
-      final lat = (data['latitude'] as num?)?.toDouble();
-      final lng = (data['longitude'] as num?)?.toDouble();
-
-      if (lat != null && lng != null) {
-        totalLat += lat;
-        totalLng += lng;
-        validProperties++;
-      }
-    }
-
-    if (validProperties > 0) {
-      return LatLng(totalLat / validProperties, totalLng / validProperties);
-    }
-
-    return const LatLng(-15.3875, 28.3228); // Fallback to Lusaka center
-  }
-
-  Widget _buildPropertyMarker(String category, String price, String currecy) {
-    String symbol;
-
-    switch (currecy.toLowerCase()) {
-      case "USD":
-        symbol = '\$';
-        break;
-      case "ZWM":
-        symbol = 'K';
-        break;
-      default:
-        symbol = 'K';
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.3),
-            blurRadius: 6,
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Text(
-        "$symbol$price",
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
   Widget _buildMiniPropertyCard(Map<String, dynamic> property) {
     return GestureDetector(
       onTap: () {
@@ -856,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    "ZMW ${property['price'] ?? 'N/A'}",
+                    "${property['currency'] ?? 'K'}${property['price'] ?? 'N/A'}",
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
@@ -870,165 +431,13 @@ class _HomeScreenState extends State<HomeScreen>
             // Close button to dismiss the card
             IconButton(
               onPressed: () {
-                setState(() {
-                  _selectedProperty = null;
-                });
+                selectedPropertyNotifier.value = null;
               },
               icon: const Icon(Icons.close, size: 20),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildMapContent() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('posts')
-          .where('latitude', isNotEqualTo: null)
-          .where('longitude', isNotEqualTo: null)
-          .snapshots(),
-      builder: (context, snapshot) {
-        // REMOVED: The duplicate nested StreamBuilder
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text(
-                  'Error loading properties',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  snapshot.error.toString(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.map_outlined, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  'No properties found',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Properties with locations will appear here',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        final properties = snapshot.data!.docs;
-
-        // Build markers list from Firebase data
-        List<Marker> markers = properties.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-
-          // Safely parse coordinates with null checks
-          final lat = (data['latitude'] as num?)?.toDouble();
-          final lng = (data['longitude'] as num?)?.toDouble();
-
-          if (lat == null || lng == null) {
-            return const Marker(
-              point: LatLng(0, 0),
-              width: 0,
-              height: 0,
-              child: SizedBox(),
-            );
-          }
-
-          return Marker(
-            point: LatLng(lat, lng),
-            width: 60,
-            height: 30,
-            alignment: Alignment.center,
-            child: GestureDetector(
-              onTap: () {
-                debugPrint('Property tapped: ${data['title']}');
-                _handlePropertyTap(doc, data, lat, lng);
-              },
-              child: _buildPropertyMarker(
-                data['category'].toString(),
-                data['price'].toString(),
-                data['currency'] ?? 'ZMW',
-              ),
-            ),
-          );
-        }).toList();
-
-        // Filter out invalid markers (those with 0,0 coordinates)
-        markers.removeWhere((marker) =>
-        marker.point.latitude == 0 && marker.point.longitude == 0);
-
-        return Stack(
-          children: [
-            FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: _getInitialCenter(properties),
-                initialZoom: 13,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  maxZoom: 19,
-                  userAgentPackageName: 'com.example.house_rent_app',
-                ),
-                MarkerLayer(markers: markers),
-                const CurrentLocationLayer(
-                  style: LocationMarkerStyle(
-                    marker: DefaultLocationMarker(
-                      child: Icon(Icons.location_pin, color: Colors.white),
-                    ),
-                    markerSize: Size(35, 35),
-                    markerDirection: MarkerDirection.heading,
-                  ),
-                ),
-              ],
-            ),
-            if (_selectedProperty != null)
-              Positioned(
-                bottom: 40,
-                left: 20,
-                right: 20,
-                child: _buildMiniPropertyCard(_selectedProperty!),
-              ),
-          ],
-        );
-      },
     );
   }
 
@@ -1048,6 +457,50 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         _buildCategoryTabs(),
       ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: 0,
+      ),
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(0),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(width: 16),
+            Icon(Icons.search, color: Colors.grey[500], size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                style: const TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search properties, locations, professionals...',
+                  hintStyle: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 12,
+                    height: 1.2,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1142,50 +595,6 @@ class _HomeScreenState extends State<HomeScreen>
           _categoryCache[cacheKey] = widget;
           return widget;
         },
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: 0,
-      ),
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white10,
-          borderRadius: BorderRadius.circular(0),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(width: 16),
-            Icon(Icons.search, color: Colors.grey[500], size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Search properties, locations, professionals...',
-                  hintStyle: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 12,
-                    height: 1.2,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  isDense: true,
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ),
       ),
     );
   }
@@ -1416,9 +825,694 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
+
   @override
-  // TODO: implement wantKeepAlive
   bool get wantKeepAlive => true;
+}
+
+// ====================================================
+// PROPERTY MAP WIDGET (FULLY DECOUPLED)
+// ====================================================
+
+class PropertyMap extends StatefulWidget {
+  final MapController mapController;
+  final ValueNotifier<Map<String, dynamic>?> selectedPropertyNotifier;
+  final ValueNotifier<String> searchQueryNotifier;
+
+  const PropertyMap({
+    super.key,
+    required this.mapController,
+    required this.selectedPropertyNotifier,
+    required this.searchQueryNotifier,
+  });
+
+  @override
+  State<PropertyMap> createState() => _PropertyMapState();
+}
+
+class _PropertyMapState extends State<PropertyMap> {
+  final _markerCache = <String, Widget>{};
+  List<QueryDocumentSnapshot> _allProperties = [];
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _showSearchDropdown =
+      false; // Add this line at the top of _PropertyMapState class
+
+  bool _isLoadingSuggestions = false;
+  List<Map<String, dynamic>> _onlineSuggestions = [];
+  Timer? _searchDebounce;
+  Stream<QuerySnapshot> get _stream => FirebaseFirestore.instance
+      .collection('posts')
+      .where('latitude', isNotEqualTo: null)
+      .where('longitude', isNotEqualTo: null)
+      .snapshots();
+
+  Widget _buildPropertyMarker(String category, String price, String currency) {
+    final key = '$category-$price-$currency';
+    if (_markerCache.containsKey(key)) return _markerCache[key]!;
+
+    String symbol;
+
+    switch (currency.toLowerCase()) {
+      case "usd":
+        symbol = '\$';
+        break;
+      default:
+        symbol = 'K';
+    }
+
+    final widget = Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.3),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Text(
+        "$symbol$price",
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+
+    _markerCache[key] = widget;
+    return widget;
+  }
+
+  LatLng _getInitialCenter(List<QueryDocumentSnapshot> properties) {
+    if (properties.isEmpty) {
+      return const LatLng(-15.3875, 28.3228); // Default Lusaka center
+    }
+
+    // Calculate average center of all properties
+    double totalLat = 0;
+    double totalLng = 0;
+    int validProperties = 0;
+
+    for (final doc in properties) {
+      final data = doc.data() as Map<String, dynamic>;
+      final lat = (data['latitude'] as num?)?.toDouble();
+      final lng = (data['longitude'] as num?)?.toDouble();
+
+      if (lat != null && lng != null) {
+        totalLat += lat;
+        totalLng += lng;
+        validProperties++;
+      }
+    }
+
+    if (validProperties > 0) {
+      return LatLng(totalLat / validProperties, totalLng / validProperties);
+    }
+
+    return const LatLng(-15.3875, 28.3228); // Fallback to Lusaka center
+  }
+
+  List<Marker> _buildMarkers(List<QueryDocumentSnapshot> properties) {
+    return properties
+        .map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+
+          // Safely parse coordinates with null checks
+          final lat = (data['latitude'] as num?)?.toDouble();
+          final lng = (data['longitude'] as num?)?.toDouble();
+
+          if (lat == null || lng == null) {
+            return const Marker(
+              point: LatLng(0, 0),
+              width: 0,
+              height: 0,
+              child: SizedBox(),
+            );
+          }
+
+          final property = {
+            'id': doc.id,
+            ...data,
+            'latitude': lat,
+            'longitude': lng,
+          };
+
+          return Marker(
+            point: LatLng(lat, lng),
+            width: 60,
+            height: 30,
+            alignment: Alignment.center,
+            child: GestureDetector(
+              onTap: () {
+                debugPrint('Property tapped: ${data['title']}');
+                widget.selectedPropertyNotifier.value = property;
+              },
+              child: _buildPropertyMarker(
+                data['category'].toString(),
+                data['price'].toString(),
+                data['currency'] ?? 'ZMW',
+              ),
+            ),
+          );
+        })
+        .where((marker) =>
+            marker.point.latitude != 0 && marker.point.longitude != 0)
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _stream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading properties',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.map_outlined, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No properties found',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Store all properties
+        _allProperties = snapshot.data!.docs;
+
+        return Stack(
+          children: [
+            // Map with markers (rebuilds only when stream updates)
+            FlutterMap(
+              mapController: widget.mapController,
+              options: MapOptions(
+                initialCenter: _getInitialCenter(_allProperties),
+                initialZoom: 13,
+                keepAlive: true,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  maxZoom: 19,
+                  userAgentPackageName: 'com.example.house_rent_app',
+                ),
+                MarkerLayer(markers: _buildMarkers(_allProperties)),
+                const CurrentLocationLayer(
+                  style: LocationMarkerStyle(
+                    marker: DefaultLocationMarker(
+                      child: Icon(Icons.location_pin, color: Colors.white),
+                    ),
+                    markerSize: Size(35, 35),
+                    markerDirection: MarkerDirection.heading,
+                  ),
+                ),
+              ],
+            ),
+            // Mini property card (updates independently via ValueListenableBuilder)
+            ValueListenableBuilder<Map<String, dynamic>?>(
+              valueListenable: widget.selectedPropertyNotifier,
+              builder: (context, property, _) {
+                if (property == null) return const SizedBox.shrink();
+
+                // Get the build context from the parent to access _buildMiniPropertyCard
+                final homeScreenState =
+                    context.findAncestorStateOfType<_HomeScreenState>();
+                if (homeScreenState == null) return const SizedBox.shrink();
+
+                return Positioned(
+                  bottom: 40,
+                  left: 20,
+                  right: 20,
+                  child: homeScreenState._buildMiniPropertyCard(property),
+                );
+              },
+            ),
+            // Search bar positioned on top of the map
+            // Search bar positioned on top of the map
+            ValueListenableBuilder<String>(
+              valueListenable:
+                  widget.searchQueryNotifier, // Use widget.searchQueryNotifier
+              builder: (context, searchQuery, _) {
+                return Positioned(
+                  top: 40,
+                  left: 20,
+                  right: 20,
+                  child: _buildMapSearchBar(),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _getAddressSubtitle(Map<String, dynamic> address) {
+    final parts = [];
+
+    if (address['city'] != null) parts.add(address['city']);
+    if (address['town'] != null) parts.add(address['town']);
+    if (address['state'] != null) parts.add(address['state']);
+    if (address['country'] != null) parts.add(address['country']);
+
+    return parts.join(', ');
+  }
+
+  String _formatDisplayName(String displayName, Map<String, dynamic> address) {
+    // Extract the most relevant part of the name
+    final city = address['city'] ?? address['town'];
+    final suburb = address['suburb'] ?? address['neighbourhood'];
+    final road = address['road'];
+
+    if (suburb != null && city != null) {
+      return '$suburb, $city';
+    } else if (road != null && city != null) {
+      return '$road, $city';
+    }
+
+    // Fallback to first part of display name
+    return displayName.split(',').first;
+  }
+
+  IconData _getSuggestionIcon(String type) {
+    switch (type) {
+      case 'city':
+        return Icons.location_city;
+      case 'area':
+      case 'suburb':
+        return Icons.place;
+      case 'village':
+        return Icons.house;
+      case 'region':
+        return Icons.map;
+      default:
+        return Icons.location_on;
+    }
+  }
+
+  void _clearSearch() {
+    setState(() {
+      _searchController.clear();
+      _searchQuery = '';
+      _onlineSuggestions = [];
+      _searchFocusNode.requestFocus(); // Keep focus to show popular suggestions
+    });
+    widget.searchQueryNotifier.value = '';
+  }
+
+  String _getLocationType(dynamic item) {
+    final address = item['address'] ?? {};
+    final type = item['type'] ?? '';
+
+    if (address['city'] != null || address['town'] != null) return 'city';
+    if (address['suburb'] != null || address['neighbourhood'] != null) {
+      return 'area';
+    }
+    if (address['village'] != null) return 'village';
+    if (type == 'administrative') return 'region';
+
+    return 'place';
+  }
+
+  Future<void> _fetchOnlineSuggestions(String query) async {
+    if (!mounted) return;
+
+    if (query.length < 3) {
+      if (mounted) {
+        setState(() {
+          _onlineSuggestions = [];
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _isLoadingSuggestions = true;
+    });
+
+    try {
+      final client = HttpClient();
+      final uri = Uri.parse('https://nominatim.openstreetmap.org/search?'
+          'q=$query&'
+          'format=json&'
+          'addressdetails=1&'
+          'limit=10&'
+          'countrycodes=zm');
+
+      final request = await client.getUrl(uri);
+      request.headers
+          .add('User-Agent', 'HouseRentApp/1.0'); // Required by Nominatim
+
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(responseBody);
+
+        final suggestions = data.map((item) {
+          return {
+            'name': item['display_name'] ?? '',
+            'type': _getLocationType(item),
+            'lat': double.parse(item['lat']),
+            'lng': double.parse(item['lon']),
+            'address': item['address'] ?? {},
+          };
+        }).toList();
+
+        if (mounted) {
+          setState(() {
+            _onlineSuggestions = suggestions;
+            _isLoadingSuggestions = false;
+          });
+        }
+      } else {
+        throw Exception('Failed to fetch suggestions');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingSuggestions = false;
+          _onlineSuggestions = [];
+        });
+      }
+      debugPrint('Error fetching suggestions: $e');
+    }
+  }
+
+  Widget _buildMapSearchBar() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.search, color: Colors.grey, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  decoration: const InputDecoration(
+                    hintText: 'Search area in Zambia...',
+                    hintStyle: TextStyle(fontSize: 15),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
+                  ),
+                  onChanged: (value) {
+                    // Update the class-level variable with setState
+                    setState(() {
+                      _showSearchDropdown = true;
+                    });
+                    _searchQuery = value;
+                    debugPrint("Searching $value ... $_showSearchDropdown");
+
+                    // Debounce search calls
+                    if (_searchDebounce?.isActive ?? false)
+                      _searchDebounce?.cancel();
+                    _searchDebounce =
+                        Timer(const Duration(milliseconds: 500), () {
+                      _fetchOnlineSuggestions(value);
+                    });
+                  },
+                ),
+              ),
+              if (_searchQuery.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: _clearSearch,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.my_location, size: 18),
+                onPressed: _moveToCurrentLocation,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+        ),
+
+        // Search Dropdown - appears when typing or focused
+        if (_showSearchDropdown) _buildSearchDropdown(),
+      ],
+    );
+  }
+
+// Update your initState to handle focus changes:
+  @override
+  void initState() {
+    super.initState();
+
+    // Remove duplicate searchQueryNotifier line (you already have it)
+    // Remove this line: final ValueNotifier<String> searchQueryNotifier = ValueNotifier('');
+
+    // Add focus listener for search dropdown
+    _searchFocusNode.addListener(() {
+      final hasFocus = _searchFocusNode.hasFocus;
+      if (hasFocus && _searchQuery.isEmpty) {
+        // Show dropdown with popular suggestions when empty field gets focus
+        if (mounted) {
+          setState(() {
+            _showSearchDropdown = true;
+          });
+        }
+      } else if (!hasFocus) {
+        // Delay hiding dropdown to allow tap on suggestions
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) {
+            setState(() {
+              _showSearchDropdown = false;
+            });
+          }
+        });
+      }
+    });
+  }
+
+// Update _navigateToSuggestion to hide dropdown after selection:
+  void _navigateToSuggestion(Map<String, dynamic> suggestion) {
+    final location = LatLng(
+      (suggestion['lat'] as num).toDouble(),
+      (suggestion['lng'] as num).toDouble(),
+    );
+
+    // Update search controller with selected suggestion
+    _searchController.text = suggestion['name'];
+
+    // Navigate to the location
+    widget.mapController.move(location, 14.0);
+
+    // Close the dropdown
+    setState(() {
+      _showSearchDropdown = false;
+    });
+    _searchFocusNode.unfocus();
+
+    // Show confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Navigating to ${suggestion['name']}'),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildSearchDropdown() {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      width: MediaQuery.of(context).size.width,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      constraints: const BoxConstraints(maxHeight: 350),
+      child: Column(
+        children: [
+          // Loading indicator
+          if (_isLoadingSuggestions)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+
+          // Search results or empty state
+          Expanded(
+            child: _buildDropdownContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _moveToCurrentLocation() async {
+    Location().getLocation().then((location) {
+      widget.mapController
+          .move(LatLng(location.latitude!, location.longitude!), 15.0);
+    });
+  }
+
+  Widget _buildDropdownContent() {
+    if (_isLoadingSuggestions) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_searchQuery.isEmpty) {
+      return _buildPopularSuggestions();
+      // return Text('');
+    }
+
+    if (_onlineSuggestions.isEmpty && _searchQuery.length > 2) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text(
+          'No locations found',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    return _buildOnlineSuggestions();
+  }
+
+  Widget _buildPopularSuggestions() {
+    return ListView(
+      padding: EdgeInsets.zero,
+      shrinkWrap: true,
+      children: [
+        ListTile(
+          leading:
+              const Icon(Icons.location_city, color: Colors.blue, size: 20),
+          title: const Text('Lusaka'),
+          subtitle: const Text('Capital city of Zambia'),
+          onTap: () =>
+              _navigateToLatLng(const LatLng(-15.3875, 28.3228), 'Lusaka'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.place, color: Colors.blue, size: 20),
+          title: const Text('Kitwe'),
+          subtitle: const Text('Copperbelt Province'),
+          onTap: () =>
+              _navigateToLatLng(const LatLng(-12.8230, 28.1939), 'Kitwe'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.place, color: Colors.blue, size: 20),
+          title: const Text('Ndola'),
+          subtitle: const Text('Copperbelt Province'),
+          onTap: () =>
+              _navigateToLatLng(const LatLng(-12.9586, 28.6366), 'Ndola'),
+        ),
+      ],
+    );
+  }
+
+  void _navigateToLatLng(LatLng location, String name) {
+    widget.mapController.move(location, 14.0);
+    setState(() {
+      _searchController.text = name;
+      _showSearchDropdown = false;
+    });
+    _searchFocusNode.unfocus();
+  }
+
+  Widget _buildOnlineSuggestions() {
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      shrinkWrap: true,
+      itemCount: _onlineSuggestions.length,
+      itemBuilder: (context, index) {
+        return _buildOnlineSuggestionItem(_onlineSuggestions[index]);
+      },
+    );
+  }
+
+  Widget _buildOnlineSuggestionItem(Map<String, dynamic> suggestion) {
+    final address = suggestion['address'] as Map<String, dynamic>;
+    final displayName = _formatDisplayName(suggestion['name'], address);
+
+    return ListTile(
+      leading: Icon(
+        _getSuggestionIcon(suggestion['type']),
+        color: Colors.blue,
+        size: 20,
+      ),
+      title: Text(
+        displayName,
+        style: const TextStyle(fontSize: 14),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        _getAddressSubtitle(address),
+        style: const TextStyle(fontSize: 12),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      visualDensity: const VisualDensity(vertical: -2),
+      onTap: () {
+        _navigateToSuggestion(suggestion);
+      },
+    );
+  }
 }
 
 // Pre-load images when property is likely to be viewed soon

@@ -115,19 +115,6 @@ class _ExploreScreenState extends State<ExploreScreen>
     });
   }
 
-  void _toggleFilterPill(String label) {
-    setState(() {
-      if (activeFilterPills.contains(label)) {
-        activeFilterPills.remove(label);
-      } else {
-        activeFilterPills.add(label);
-      }
-      // Invalidate cache on filter change
-      _propertiesCacheKey = 0;
-      _professionalsCacheKey = 0;
-    });
-  }
-
   // Memoized filtered properties with caching
   List<Property> get _filteredProperties {
     final cacheKey = Object.hash(
@@ -162,7 +149,9 @@ class _ExploreScreenState extends State<ExploreScreen>
     final cacheKey = Object.hash(
       professionals.length,
       searchQuery,
-      Object.hashAll(professionalFilterSelection.entries.where((e) => e.value).map((e) => e.key)),
+      Object.hashAll(professionalFilterSelection.entries
+          .where((e) => e.value)
+          .map((e) => e.key)),
     );
 
     if (_professionalsCacheKey == cacheKey) {
@@ -195,7 +184,7 @@ class _ExploreScreenState extends State<ExploreScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
           content:
-          Text(isProperty ? 'Open Property $id' : 'Open Professional $id')),
+              Text(isProperty ? 'Open Property $id' : 'Open Professional $id')),
     );
   }
 
@@ -287,7 +276,7 @@ class _ExploreScreenState extends State<ExploreScreen>
         padding: const EdgeInsets.symmetric(horizontal: kHorizontalPadding),
         sliver: SliverGrid(
           delegate: SliverChildBuilderDelegate(
-                (context, index) {
+            (context, index) {
               final items = _filteredProperties;
               if (index >= items.length) return null;
               final p = items[index];
@@ -311,7 +300,7 @@ class _ExploreScreenState extends State<ExploreScreen>
         padding: const EdgeInsets.symmetric(horizontal: kHorizontalPadding),
         sliver: SliverGrid(
           delegate: SliverChildBuilderDelegate(
-                (context, index) {
+            (context, index) {
               final items = _filteredProfessionals;
               if (index >= items.length) return null;
               final pr = items[index];
@@ -341,12 +330,12 @@ class _ExploreScreenState extends State<ExploreScreen>
         child: Center(
           child: isLoadingMore
               ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2))
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
               : (!hasMore
-              ? const Text('No more results', style: kCaptionStyle)
-              : const SizedBox.shrink()),
+                  ? const Text('No more results', style: kCaptionStyle)
+                  : const SizedBox.shrink()),
         ),
       ),
     );
@@ -369,7 +358,8 @@ class _TabSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: kHorizontalPadding, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+          horizontal: kHorizontalPadding, vertical: 12),
       child: Row(
         children: [
           _TabButton(label: 'Properties', tab: ExploreTab.properties),
@@ -490,7 +480,8 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
   @override
   void initState() {
     super.initState();
-    tempSelection = Map<ProfessionalSpecialty, bool>.from(widget.initialSelection);
+    tempSelection =
+        Map<ProfessionalSpecialty, bool>.from(widget.initialSelection);
   }
 
   @override
@@ -499,7 +490,8 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Padding(
-          padding: MediaQuery.of(context).viewInsets.add(const EdgeInsets.all(16)),
+          padding:
+              MediaQuery.of(context).viewInsets.add(const EdgeInsets.all(16)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
