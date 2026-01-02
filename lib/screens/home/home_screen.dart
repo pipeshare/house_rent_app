@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -12,8 +10,10 @@ import 'package:house_rent_app/core/helpers.dart';
 import 'package:house_rent_app/core/routes/routes.dart';
 import 'package:house_rent_app/models/DataModels.dart';
 import 'package:house_rent_app/models/Professional.dart';
+import 'package:house_rent_app/screens/home/components/location_suggestion.dart';
 import 'package:house_rent_app/screens/home/components/properties_list.dart';
 import 'package:house_rent_app/screens/home/property_card.dart';
+import 'package:house_rent_app/services/nominatim_service.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:location/location.dart';
 
@@ -851,6 +851,12 @@ class PropertyMap extends StatefulWidget {
 }
 
 class _PropertyMapState extends State<PropertyMap> {
+  // Class-level variables
+  final ValueNotifier<List<Map<String, dynamic>>> _suggestionsNotifier =
+      ValueNotifier([]);
+  final ValueNotifier<bool> _showDropdownNotifier = ValueNotifier(false);
+  final ValueNotifier<bool> _isLoadingNotifier = ValueNotifier(false);
+
   final _markerCache = <String, Widget>{};
   List<QueryDocumentSnapshot> _allProperties = [];
   final TextEditingController _searchController = TextEditingController();
@@ -1080,11 +1086,8 @@ class _PropertyMapState extends State<PropertyMap> {
                 );
               },
             ),
-            // Search bar positioned on top of the map
-            // Search bar positioned on top of the map
             ValueListenableBuilder<String>(
-              valueListenable:
-                  widget.searchQueryNotifier, // Use widget.searchQueryNotifier
+              valueListenable: widget.searchQueryNotifier,
               builder: (context, searchQuery, _) {
                 return Positioned(
                   top: 40,
@@ -1153,93 +1156,15 @@ class _PropertyMapState extends State<PropertyMap> {
     widget.searchQueryNotifier.value = '';
   }
 
-  String _getLocationType(dynamic item) {
-    final address = item['address'] ?? {};
-    final type = item['type'] ?? '';
-
-    if (address['city'] != null || address['town'] != null) return 'city';
-    if (address['suburb'] != null || address['neighbourhood'] != null) {
-      return 'area';
-    }
-    if (address['village'] != null) return 'village';
-    if (type == 'administrative') return 'region';
-
-    return 'place';
-  }
-
-  Future<void> _fetchOnlineSuggestions(String query) async {
-    if (!mounted) return;
-
-    if (query.length < 3) {
-      if (mounted) {
-        setState(() {
-          _onlineSuggestions = [];
-        });
-      }
-      return;
-    }
-
-    setState(() {
-      _isLoadingSuggestions = true;
-    });
-
-    try {
-      final client = HttpClient();
-      final uri = Uri.parse('https://nominatim.openstreetmap.org/search?'
-          'q=$query&'
-          'format=json&'
-          'addressdetails=1&'
-          'limit=10&'
-          'countrycodes=zm');
-
-      final request = await client.getUrl(uri);
-      request.headers
-          .add('User-Agent', 'HouseRentApp/1.0'); // Required by Nominatim
-
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(responseBody);
-
-        final suggestions = data.map((item) {
-          return {
-            'name': item['display_name'] ?? '',
-            'type': _getLocationType(item),
-            'lat': double.parse(item['lat']),
-            'lng': double.parse(item['lon']),
-            'address': item['address'] ?? {},
-          };
-        }).toList();
-
-        if (mounted) {
-          setState(() {
-            _onlineSuggestions = suggestions;
-            _isLoadingSuggestions = false;
-          });
-        }
-      } else {
-        throw Exception('Failed to fetch suggestions');
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingSuggestions = false;
-          _onlineSuggestions = [];
-        });
-      }
-      debugPrint('Error fetching suggestions: $e');
-    }
-  }
-
   Widget _buildMapSearchBar() {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          height: MediaQuery.of(context).size.height * 0.07,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -1255,7 +1180,7 @@ class _PropertyMapState extends State<PropertyMap> {
               Expanded(
                 child: TextField(
                   controller: _searchController,
-                  focusNode: _searchFocusNode,
+                  // focusNode: _searchFocusNode,
                   decoration: const InputDecoration(
                     hintText: 'Search area in Zambia...',
                     hintStyle: TextStyle(fontSize: 15),
@@ -1264,19 +1189,35 @@ class _PropertyMapState extends State<PropertyMap> {
                     isDense: true,
                   ),
                   onChanged: (value) {
-                    // Update the class-level variable with setState
-                    setState(() {
-                      _showSearchDropdown = true;
-                    });
                     _searchQuery = value;
-                    debugPrint("Searching $value ... $_showSearchDropdown");
 
-                    // Debounce search calls
-                    if (_searchDebounce?.isActive ?? false)
-                      _searchDebounce?.cancel();
+                    _searchDebounce?.cancel();
                     _searchDebounce =
-                        Timer(const Duration(milliseconds: 500), () {
-                      _fetchOnlineSuggestions(value);
+                        Timer(const Duration(milliseconds: 500), () async {
+                      if (!mounted) return;
+
+                      _isLoadingNotifier.value = true;
+
+                      // For sample data
+                      try {
+                        final locations = await NominatimService.search(
+                          query: _searchQuery,
+                          countryCode: 'zm',
+                        );
+
+                        if (!mounted) return;
+
+                        print("Found ${locations.length} locations");
+                        _isLoadingSuggestions = false;
+                        // Update suggestions and show dropdown
+                        _suggestionsNotifier.value = locations;
+                        _showDropdownNotifier.value = true;
+                        _isLoadingNotifier.value = false;
+                      } on NominatimException catch (e) {
+                        debugPrint("error message: ${e.toString()}");
+                        _buildSearchDropdown();
+                        // if (!mounted) return;
+                      }
                     });
                   },
                 ),
@@ -1298,42 +1239,10 @@ class _PropertyMapState extends State<PropertyMap> {
             ],
           ),
         ),
-
         // Search Dropdown - appears when typing or focused
-        if (_showSearchDropdown) _buildSearchDropdown(),
+        _buildSearchDropdown(),
       ],
     );
-  }
-
-// Update your initState to handle focus changes:
-  @override
-  void initState() {
-    super.initState();
-
-    // Remove duplicate searchQueryNotifier line (you already have it)
-    // Remove this line: final ValueNotifier<String> searchQueryNotifier = ValueNotifier('');
-
-    // Add focus listener for search dropdown
-    _searchFocusNode.addListener(() {
-      final hasFocus = _searchFocusNode.hasFocus;
-      if (hasFocus && _searchQuery.isEmpty) {
-        // Show dropdown with popular suggestions when empty field gets focus
-        if (mounted) {
-          setState(() {
-            _showSearchDropdown = true;
-          });
-        }
-      } else if (!hasFocus) {
-        // Delay hiding dropdown to allow tap on suggestions
-        Future.delayed(const Duration(milliseconds: 200), () {
-          if (mounted) {
-            setState(() {
-              _showSearchDropdown = false;
-            });
-          }
-        });
-      }
-    });
   }
 
 // Update _navigateToSuggestion to hide dropdown after selection:
@@ -1366,40 +1275,51 @@ class _PropertyMapState extends State<PropertyMap> {
   }
 
   Widget _buildSearchDropdown() {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      width: MediaQuery.of(context).size.width,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      constraints: const BoxConstraints(maxHeight: 350),
-      child: Column(
-        children: [
-          // Loading indicator
-          if (_isLoadingSuggestions)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+    return ValueListenableBuilder<List<Map<String, dynamic>>>(
+      valueListenable: _suggestionsNotifier,
+      builder: (context, suggestions, _) {
+        return Container(
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.all(8),
+          width: MediaQuery.of(context).size.width,
+          constraints: const BoxConstraints(maxHeight: 300),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-            ),
-
-          // Search results or empty state
-          Expanded(
-            child: _buildDropdownContent(),
+            ],
           ),
-        ],
-      ),
+          child: suggestions.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No locations found',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: suggestions.length,
+                  shrinkWrap: true, // <-- allow it to take only needed space
+                  itemBuilder: (context, index) {
+                    final suggestion = suggestions[index];
+
+                    return ListTile(
+                      title: Text(suggestion['name'] ?? ''),
+                      subtitle: Text(
+                          suggestion['address']?['city'] ?? 'No city info'),
+                      onTap: () {
+                        debugPrint('Selected ${suggestion['name']}');
+                        _showDropdownNotifier.value = false;
+                      },
+                    );
+                  },
+                ),
+        );
+      },
     );
   }
 
