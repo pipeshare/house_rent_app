@@ -3,20 +3,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent_app/screens/home/property_card.dart';
 
-class PropertiesListWidget extends StatefulWidget {
-  final Stream<QuerySnapshot>? propertiesStream;
+class PostsSection extends StatefulWidget {
+  final Stream<QuerySnapshot>? postsStream;
 
-  const PropertiesListWidget({required this.propertiesStream});
+  const PostsSection({
+    super.key,
+    required this.postsStream,
+  });
 
   @override
-  State<PropertiesListWidget> createState() => PropertiesListWidgetState();
+  State<PostsSection> createState() => PostsSectionState();
 }
 
-class PropertiesListWidgetState extends State<PropertiesListWidget> {
+class PostsSectionState extends State<PostsSection> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: widget.propertiesStream,
+      stream: widget.postsStream,
       builder: (context, snapshot) {
         // Your existing stream builder logic
         if (snapshot.hasError) {
@@ -44,7 +47,7 @@ class PropertiesListWidgetState extends State<PropertiesListWidget> {
 
         return SliverList(
           delegate: SliverChildBuilderDelegate(
-                (context, index) {
+            (context, index) {
               final property = properties[index].data() as Map<String, dynamic>;
               return PropertyCard(
                 property: property,

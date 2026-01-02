@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:house_rent_app/core/constants.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PostService {
@@ -122,5 +124,13 @@ class PostService {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> postsStream({String? category}) {
+    final query = category == null || category == 'All'
+        ? _firestore.collection('posts').orderBy('createdAt', descending: true)
+        : _firestore.collection('posts').where('category', isEqualTo: category);
+
+    return query.snapshots();
   }
 }

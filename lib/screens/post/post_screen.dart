@@ -52,7 +52,6 @@ class _PostScreenState extends State<PostScreen> {
   final locationCtrl = TextEditingController();
   final priceCtrl = TextEditingController();
   final List<String> _photos = [];
-  final PostService _postService = PostService();
 
   // Loading state
   bool _isPosting = false;

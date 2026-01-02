@@ -357,13 +357,13 @@ class _TabSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: kHorizontalPadding, vertical: 12),
+    return const Padding(
+      padding:
+          EdgeInsets.symmetric(horizontal: kHorizontalPadding, vertical: 12),
       child: Row(
         children: [
           _TabButton(label: 'Properties', tab: ExploreTab.properties),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           _TabButton(label: 'Professionals', tab: ExploreTab.professionals),
         ],
       ),
