@@ -10,6 +10,7 @@ class PropertyCard extends StatefulWidget {
     super.key,
     required this.property,
     required this.onTap,
+    required Null Function() onClose,
   });
 
   @override

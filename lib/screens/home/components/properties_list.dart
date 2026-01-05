@@ -44,13 +44,14 @@ class PropertiesListWidgetState extends State<PropertiesListWidget> {
 
         return SliverList(
           delegate: SliverChildBuilderDelegate(
-                (context, index) {
+            (context, index) {
               final property = properties[index].data() as Map<String, dynamic>;
               return PropertyCard(
                 property: property,
                 onTap: () {
                   // Navigate to property details
                 },
+                onClose: () {},
               );
             },
             childCount: properties.length,

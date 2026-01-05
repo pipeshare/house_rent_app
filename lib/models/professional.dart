@@ -1,6 +1,13 @@
 import 'dart:math';
 
-enum ProfessionalSpecialty { architect, agent, lawyer, inspector, broker }
+enum ProfessionalSpecialty {
+  architect,
+  agent,
+  lawyer,
+  contractor,
+  broker,
+  inspector
+}
 
 extension ProfessionalSpecialtyExtension on ProfessionalSpecialty {
   String get displayName {
@@ -15,6 +22,8 @@ extension ProfessionalSpecialtyExtension on ProfessionalSpecialty {
         return 'Inspector';
       case ProfessionalSpecialty.broker:
         return 'Broker';
+      case ProfessionalSpecialty.contractor:
+        return 'Contractor';
     }
   }
 }
