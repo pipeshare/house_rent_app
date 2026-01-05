@@ -24,8 +24,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with AutomaticKeepAliveClientMixin<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> {
   bool _showSearchDropdown = false;
   Timer? _searchDebounce;
 
@@ -224,7 +223,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -825,9 +823,6 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
-
-  @override
-  bool get wantKeepAlive => true;
 }
 
 // ====================================================
@@ -862,12 +857,12 @@ class _PropertyMapState extends State<PropertyMap> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   final FocusNode _searchFocusNode = FocusNode();
-  bool _showSearchDropdown =
-      false; // Add this line at the top of _PropertyMapState class
+  // Controllers & Notifiers
+  final ValueNotifier<String> _searchQueryNotifier = ValueNotifier('');
 
-  bool _isLoadingSuggestions = false;
-  List<Map<String, dynamic>> _onlineSuggestions = [];
   Timer? _searchDebounce;
+  final bool _isLoadingSuggestions = false;
+  List<Map<String, dynamic>> _onlineSuggestions = [];
   Stream<QuerySnapshot> get _stream => FirebaseFirestore.instance
       .collection('posts')
       .where('latitude', isNotEqualTo: null)
@@ -1147,12 +1142,10 @@ class _PropertyMapState extends State<PropertyMap> {
   }
 
   void _clearSearch() {
-    setState(() {
-      _searchController.clear();
-      _searchQuery = '';
-      _onlineSuggestions = [];
-      _searchFocusNode.requestFocus(); // Keep focus to show popular suggestions
-    });
+    _searchController.clear();
+    _searchQuery = '';
+    _onlineSuggestions = [];
+    _searchFocusNode.requestFocus();
     widget.searchQueryNotifier.value = '';
   }
 
@@ -1178,57 +1171,60 @@ class _PropertyMapState extends State<PropertyMap> {
               const Icon(Icons.search, color: Colors.grey, size: 20),
               const SizedBox(width: 12),
               Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  // focusNode: _searchFocusNode,
-                  decoration: const InputDecoration(
-                    hintText: 'Search area in Zambia...',
-                    hintStyle: TextStyle(fontSize: 15),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    isDense: true,
-                  ),
-                  onChanged: (value) {
-                    _searchQuery = value;
+                child: ValueListenableBuilder<String>(
+                  valueListenable: _searchQueryNotifier,
+                  builder: (context, searchQuery, _) {
+                    return TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: 'Search area in Zambia...',
+                        hintStyle: TextStyle(fontSize: 15),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                      ),
+                      onChanged: (value) {
+                        _searchQueryNotifier.value = value;
 
-                    _searchDebounce?.cancel();
-                    _searchDebounce =
-                        Timer(const Duration(milliseconds: 500), () async {
-                      if (!mounted) return;
+                        _searchDebounce?.cancel();
+                        _searchDebounce = Timer(
+                          const Duration(milliseconds: 500),
+                          () async {
+                            if (!mounted) return;
 
-                      _isLoadingNotifier.value = true;
+                            _isLoadingNotifier.value = true;
 
-                      // For sample data
-                      try {
-                        final locations = await NominatimService.search(
-                          query: _searchQuery,
-                          countryCode: 'zm',
+                            // Replace with real API call if needed
+                            final locations = await NominatimService.search(
+                              query: _searchQuery,
+                              countryCode: 'zm',
+                            );
+
+                            if (!mounted) return;
+
+                            _suggestionsNotifier.value = locations;
+                            _showDropdownNotifier.value = true;
+                            _isLoadingNotifier.value = false;
+                          },
                         );
-
-                        if (!mounted) return;
-
-                        print("Found ${locations.length} locations");
-                        _isLoadingSuggestions = false;
-                        // Update suggestions and show dropdown
-                        _suggestionsNotifier.value = locations;
-                        _showDropdownNotifier.value = true;
-                        _isLoadingNotifier.value = false;
-                      } on NominatimException catch (e) {
-                        debugPrint("error message: ${e.toString()}");
-                        _buildSearchDropdown();
-                        // if (!mounted) return;
-                      }
-                    });
+                      },
+                    );
                   },
                 ),
               ),
-              if (_searchQuery.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: _clearSearch,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
+              ValueListenableBuilder<String>(
+                valueListenable: _searchQueryNotifier,
+                builder: (context, searchQuery, _) {
+                  return searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 20),
+                          onPressed: _clearSearch,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        )
+                      : const SizedBox(width: 0);
+                },
+              ),
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.my_location, size: 18),
@@ -1239,8 +1235,15 @@ class _PropertyMapState extends State<PropertyMap> {
             ],
           ),
         ),
-        // Search Dropdown - appears when typing or focused
-        _buildSearchDropdown(),
+
+        // Search Dropdown
+        ValueListenableBuilder<bool>(
+          valueListenable: _showDropdownNotifier,
+          builder: (context, showDropdown, _) {
+            print('showDropdown: $showDropdown');
+            return showDropdown ? _buildSearchDropdown() : const SizedBox();
+          },
+        ),
       ],
     );
   }
@@ -1259,9 +1262,7 @@ class _PropertyMapState extends State<PropertyMap> {
     widget.mapController.move(location, 14.0);
 
     // Close the dropdown
-    setState(() {
-      _showSearchDropdown = false;
-    });
+    setState(() {});
     _searchFocusNode.unfocus();
 
     // Show confirmation
@@ -1388,7 +1389,6 @@ class _PropertyMapState extends State<PropertyMap> {
     widget.mapController.move(location, 14.0);
     setState(() {
       _searchController.text = name;
-      _showSearchDropdown = false;
     });
     _searchFocusNode.unfocus();
   }

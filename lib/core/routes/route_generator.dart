@@ -1,8 +1,8 @@
 // lib/routes/route_generator.dart
 import 'package:flutter/material.dart';
 import 'package:house_rent_app/core/routes/routes.dart';
-import 'package:house_rent_app/screens/auth/login_screen.dart';
-import 'package:house_rent_app/screens/auth/register_screen.dart';
+import 'package:house_rent_app/screens/auth/login/login_screen.dart';
+import 'package:house_rent_app/screens/auth/register/register_screen.dart';
 import 'package:house_rent_app/screens/forgot_password_screen/forgot_password_screen.dart';
 import 'package:house_rent_app/screens/main.dart';
 import 'package:house_rent_app/screens/property/property_screen.dart';

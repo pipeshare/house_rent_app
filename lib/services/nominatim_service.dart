@@ -21,9 +21,6 @@ class NominatimService {
     if (query.trim().length < 3) {
       return [];
     }
-
-    print('Sending Nominatim search request for query: "$query"');
-
     try {
       final uri = Uri.parse('$_baseUrl/search').replace(
         queryParameters: {
@@ -35,8 +32,6 @@ class NominatimService {
             'countrycodes': countryCode.toLowerCase(),
         },
       );
-
-      print('Nominatim request URL: $uri');
 
       final client = HttpClient();
       final request = await client.getUrl(uri);
