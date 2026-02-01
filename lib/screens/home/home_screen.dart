@@ -728,12 +728,20 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
               const Spacer(),
-              Text(
-                'See more >',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue[800],
+              GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(
+                    context,
+                    RouteNames.professionals,
+                  );
+                },
+                child: Text(
+                  'See more >',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue[800],
+                  ),
                 ),
               ),
             ],

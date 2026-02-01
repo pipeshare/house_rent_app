@@ -5,6 +5,7 @@ import 'package:house_rent_app/screens/auth/login_screen.dart';
 import 'package:house_rent_app/screens/auth/register_screen.dart';
 import 'package:house_rent_app/screens/forgot_password_screen/forgot_password_screen.dart';
 import 'package:house_rent_app/screens/main.dart';
+import 'package:house_rent_app/screens/professionals_screen/professionals.dart';
 import 'package:house_rent_app/screens/property/property_screen.dart';
 
 class RouteGenerator {
@@ -23,6 +24,11 @@ class RouteGenerator {
         final item = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
           builder: (_) => PropertyDetailsScreen(item: item),
+        );
+
+      case RouteNames.professionals:
+        return MaterialPageRoute(
+          builder: (_) => const ProfessionalsScreen(),
         );
 
       // case RouteNames.editProfile:

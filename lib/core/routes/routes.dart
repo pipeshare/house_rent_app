@@ -12,6 +12,7 @@ class RouteNames {
   static const String settings = '/settings';
   static const String notifications = '/notifications';
   static const String propertyDetails = '/property-details';
+  static const String professionals = '/professionals';
 
   // Add more route names as needed
 }
